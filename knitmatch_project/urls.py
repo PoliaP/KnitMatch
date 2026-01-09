@@ -14,9 +14,24 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from django.contrib.auth import views as auth_views
+from yarn_app import views as yarn_views
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    # Главная страница
+    path('', yarn_views.home, name='home'),
+    
+    # Аутентификация
+    path('login/', auth_views.LoginView.as_view(
+        template_name='login.html',
+        redirect_authenticated_user=True
+    ), name='login'),
+    
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    
+    path('signup/', yarn_views.signup, name='signup'),
+    
+    # Приложение yarn_app
+    path('yarn/', include('yarn_app.urls')),
 ]

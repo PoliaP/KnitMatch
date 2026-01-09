@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KnitMatch - Главная</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>🧶 KnitMatch</h1>
+        <p class="lead">Найдем идеальную схему для вашей пряжи!</p>
+        
+        {% if user.is_authenticated %}
+            <div class="mt-4">
+                <h3>Привет, {{ user.username }}!</h3>
+                <a href="{% url 'my_yarn' %}" class="btn btn-primary">Моя пряжа</a>
+                <a href="{% url 'add_yarn' %}" class="btn btn-success">Добавить пряжу</a>
+                <a href="{% url 'logout' %}" class="btn btn-outline-secondary">Выйти</a>
+            </div>
+        {% else %}
+            <div class="mt-4">
+                <a href="{% url 'login' %}" class="btn btn-primary">Войти</a>
+                <a href="{% url 'signup' %}" class="btn btn-success">Регистрация</a>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
