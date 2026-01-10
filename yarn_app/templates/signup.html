@@ -1,84 +1,106 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Регистрация - KnitMatch</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .errorlist {
-            color: red;
-            list-style: none;
-            padding: 0;
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/signup.css">
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h4 class="mb-0">Регистрация в KnitMatch</h4>
+    <div class="container">
+        <div class="signup-card">
+            <div class="signup-header">
+                <div class="logo-container">
+                    <img src="/static/images/logo.jpg" alt="KnitMatch Logo" class="signup-logo">
+                </div>
+                <h2 class="mb-2">Присоединяйтесь!</h2>
+                <p class="mb-0">Создайте аккаунт и начните использовать KnitMatch</p>
+            </div>
+            
+            <div class="signup-body">
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    <strong>Пожалуйста, исправьте ошибки:</strong>
+                    <ul class="mb-0">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Имя пользователя</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">
+                                <i class="fas fa-user text-muted"></i>
+                            </span>
+                            {{ form.username }}
+                        </div>
+                        <div class="form-text">Только буквы, цифры и @/./+/-/_</div>
                     </div>
-                    <div class="card-body">
-                        <form method="post">
-                            {% csrf_token %}
-                            
-                            {% if form.errors %}
-                            <div class="alert alert-danger">
-                                <strong>Ошибки:</strong>
-                                <ul>
-                                {% for field in form %}
-                                    {% for error in field.errors %}
-                                        <li>{{ error }}</li>
-                                    {% endfor %}
-                                {% endfor %}
-                                </ul>
-                            </div>
-                            {% endif %}
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Имя пользователя:</label>
-                                {{ form.username }}
-                                <small class="text-muted">Обязательное поле. Только буквы, цифры и @/./+/-/_.</small>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Пароль:</label>
-                                {{ form.password1 }}
-                                <small class="text-muted">
-                                    <ul>
-                                        <li>Не менее 8 символов</li>
-                                        <li>Не должен быть похож на имя пользователя</li>
-                                        <li>Не должен быть слишком простым</li>
-                                    </ul>
-                                </small>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Подтверждение пароля:</label>
-                                {{ form.password2 }}
-                                <small class="text-muted">Введите тот же пароль для проверки.</small>
-                            </div>
-                            
-                            <button type="submit" class="btn btn-success w-100">Зарегистрироваться</button>
-                        </form>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Пароль</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">
+                                <i class="fas fa-lock text-muted"></i>
+                            </span>
+                            {{ form.password1 }}
+                        </div>
                         
-                        <div class="mt-3 text-center">
-                            <p>Уже есть аккаунт? <a href="/login/">Войдите</a></p>
-                            <p><a href="/">Вернуться на главную</a></p>
+                        <div class="password-hints">
+                            <small class="text-muted">Пароль должен содержать:</small>
+                            <ul>
+                                <li>Не менее 8 символов</li>
+                                <li>Не должен быть похож на имя пользователя</li>
+                                <li>Не должен быть слишком простым</li>
+                            </ul>
                         </div>
                     </div>
-                </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Подтверждение пароля</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">
+                                <i class="fas fa-lock text-muted"></i>
+                            </span>
+                            {{ form.password2 }}
+                        </div>
+                        <div class="form-text">Введите тот же пароль для проверки</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-signup mb-3">
+                        <i class="fas fa-user-plus me-2"></i>Создать аккаунт
+                    </button>
+                    
+                    <div class="text-center mt-4">
+                        <p class="mb-0">
+                            Уже есть аккаунт? 
+                            <a href="{% url 'login' %}" class="text-decoration-none fw-semibold">
+                                Войти
+                            </a>
+                        </p>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
     
     <script>
-        // Добавляем Bootstrap классы к полям формы
+        // Добавляем Bootstrap классы к полям формы Django
         document.addEventListener('DOMContentLoaded', function() {
             const inputs = document.querySelectorAll('input[type="text"], input[type="password"]');
             inputs.forEach(input => {
                 input.classList.add('form-control');
+                input.placeholder = 'Введите значение...';
             });
         });
     </script>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Моя пряжа - KnitMatch</title>
+    <!-- Подключаем тот же стиль что и в home.html -->
+</head>
+<body>
+    <!-- Та же навигация что в home.html -->
+    
+    <div class="container py-5">
+        <h1 class="mb-4">🧶 Моя пряжа</h1>
+        
+        <a href="/yarn/add/" class="btn btn-knitmatch mb-4">
+            <i class="fas fa-plus-circle me-2"></i>Добавить новую пряжу
+        </a>
+        
+        {% if yarns %}
+            <div class="row">
+                {% for yarn in yarns %}
+                <div class="col-md-4 mb-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h5 class="card-title">{{ yarn.color }}</h5>
+                                    <p class="text-muted mb-1">
+                                        <i class="fas fa-weight me-1"></i>
+                                        {{ yarn.get_yarn_type_display }}
+                                    </p>
+                                    <p class="mb-0">
+                                        <i class="fas fa-weight-hanging me-1"></i>
+                                        {{ yarn.amount }} грамм
+                                    </p>
+                                </div>
+                                <div class="yarn-color" style="width: 30px; height: 30px; background-color: {{ yarn.color|lower }}; border-radius: 50%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">У вас пока нет пряжи</h4>
+                <p class="text-muted">Добавьте первую пряжу чтобы начать получать рекомендации</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Та же подвал что в home.html -->
+</body>
+</html>
