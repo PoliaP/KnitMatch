@@ -8,16 +8,23 @@ class UserYarn(models.Model):
         ('dk', 'Средняя (DK)'),
         ('worsted', 'Камвольная (Worsted)'),
         ('bulky', 'Толстая (Bulky)'),
+        ('other', 'Другая'),
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    yarn_type = models.CharField(max_length=20, choices=YARN_TYPES)
-    color = models.CharField(max_length=30)
-    amount = models.IntegerField()  # в граммах
+    name = models.CharField(max_length=100, blank=True, null=True, verbose_name="Название пряжи")
+    yarn_type = models.CharField(max_length=20, choices=YARN_TYPES, verbose_name="Тип пряжи")
+    color = models.CharField(max_length=30, verbose_name="Цвет")
+    amount = models.IntegerField(verbose_name="Количество (мотки)")
+    weight = models.IntegerField(verbose_name="Вес (г)", blank=True, null=True)
+    manufacturer = models.CharField(max_length=100, blank=True, null=True, verbose_name="Производитель")
+    notes = models.TextField(blank=True, null=True, verbose_name="Примечания")
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return f"{self.color} {self.get_yarn_type_display()} ({self.amount}г)"
+        if self.name:
+            return f"{self.name} - {self.color}"
+        return f"{self.color} {self.get_yarn_type_display()}"
 
 
 class Pattern(models.Model):

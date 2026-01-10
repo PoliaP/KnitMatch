@@ -1,0 +1,182 @@
+<!-- yarn_detail.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детали пряжи - KnitMatch</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/yarn_detail.css">
+</head>
+<body>
+    <div class="container detail-container">
+        <div class="detail-card">
+            <!-- Декоративные точки -->
+            <div class="decorative-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            
+            <!-- Цветовой заголовок -->
+            <div class="color-header">
+                <div class="color-badge pulse" style="background-color: {{ yarn.color }};"></div>
+            </div>
+            
+            <!-- Основное содержимое -->
+            <div class="detail-content">
+                <!-- Название и тип -->
+                <div class="yarn-title">
+                    <h1 class="yarn-name">
+                        {% if yarn.name %}
+                            {{ yarn.name }}
+                        {% else %}
+                            {{ yarn.get_yarn_type_display }}
+                        {% endif %}
+                    </h1>
+                    <div class="yarn-type-badge">{{ yarn.get_yarn_type_display }}</div>
+                </div>
+                
+                <!-- Статистика -->
+                <div class="yarn-stats">
+                    <div class="stat-item">
+                        <div class="stat-icon">
+                            <i class="fas fa-cube"></i>
+                        </div>
+                        <div class="stat-value">{{ yarn.amount }}</div>
+                        <div class="stat-label">Мотков</div>
+                    </div>
+                    
+                    {% if yarn.weight %}
+                    <div class="stat-item">
+                        <div class="stat-icon">
+                            <i class="fas fa-weight-hanging"></i>
+                        </div>
+                        <div class="stat-value">{{ yarn.weight }}</div>
+                        <div class="stat-label">Грамм</div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="stat-item">
+                        <div class="stat-icon">
+                            <i class="fas fa-palette"></i>
+                        </div>
+                        <div class="stat-value" style="color: {{ yarn.color }};">●</div>
+                        <div class="stat-label">Цвет</div>
+                    </div>
+                </div>
+                
+                <!-- Информация о цвете -->
+                <div class="info-section">
+                    <div class="info-header">
+                        <i class="fas fa-palette"></i>
+                        <h4>Цвет пряжи</h4>
+                    </div>
+                    <div class="info-content">
+                        <div class="d-flex align-items-center mb-2">
+                            <div style="width: 30px; height: 30px; border-radius: 50%; background-color: {{ yarn.color }}; margin-right: 10px; border: 2px solid #e9ecef;"></div>
+                            <span><strong>HEX:</strong> {{ yarn.color }}</span>
+                        </div>
+                        <p class="mb-0">Этот цвет будет использоваться для визуализации пряжи в вашей коллекции.</p>
+                    </div>
+                </div>
+                
+                <!-- Дополнительная информация -->
+                {% if yarn.manufacturer or yarn.notes %}
+                <div class="info-section highlight">
+                    <div class="info-header">
+                        <i class="fas fa-info-circle"></i>
+                        <h4>Дополнительная информация</h4>
+                    </div>
+                    <div class="info-content">
+                        {% if yarn.manufacturer %}
+                        <div class="mb-3">
+                            <strong><i class="fas fa-industry me-2"></i>Производитель:</strong>
+                            <span class="manufacturer-badge">{{ yarn.manufacturer }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if yarn.notes %}
+                        <div>
+                            <strong><i class="fas fa-sticky-note me-2"></i>Примечания:</strong>
+                            <div class="notes-box mt-2">
+                                {{ yarn.notes }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Мета информация -->
+                <div class="meta-info">
+                    <div class="meta-item">
+                        <i class="fas fa-calendar"></i>
+                        <span>Добавлено: {{ yarn.created_at|date:"d.m.Y H:i" }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-fingerprint"></i>
+                        <span>ID: {{ yarn.id }}</span>
+                    </div>
+                </div>
+                
+                <!-- Кнопки действий -->
+                <div class="action-buttons">
+                    <a href="{% url 'my_yarn' %}" class="btn-back">
+                        <i class="fas fa-arrow-left me-2"></i>Назад к коллекции
+                    </a>
+                    <a href="{% url 'delete_yarn' yarn.id %}" class="btn-delete">
+                        <i class="fas fa-trash me-2"></i>Удалить пряжу
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Анимация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            // Анимация появления элементов
+            const elements = document.querySelectorAll('.stat-item, .info-section');
+            elements.forEach((element, index) => {
+                setTimeout(() => {
+                    element.style.opacity = '0';
+                    element.style.transform = 'translateY(20px)';
+                    element.style.transition = 'all 0.5s ease';
+                    
+                    setTimeout(() => {
+                        element.style.opacity = '1';
+                        element.style.transform = 'translateY(0)';
+                    }, 100);
+                }, index * 100);
+            });
+            
+            // Эффект пульсации для цветного бейджа
+            const colorBadge = document.querySelector('.color-badge');
+            let pulseInterval;
+            
+            function startPulse() {
+                pulseInterval = setInterval(() => {
+                    colorBadge.classList.toggle('pulse');
+                }, 4000);
+            }
+            
+            function stopPulse() {
+                clearInterval(pulseInterval);
+                colorBadge.classList.remove('pulse');
+            }
+            
+            // Управление пульсацией при наведении
+            colorBadge.addEventListener('mouseenter', stopPulse);
+            colorBadge.addEventListener('mouseleave', startPulse);
+            
+            // Начать пульсацию при загрузке
+            startPulse();
+        });
+    </script>
+</body>
+</html>

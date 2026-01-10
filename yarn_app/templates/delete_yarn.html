@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Удалить пряжу - KnitMatch</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/delete_yarn.css">
+</head>
+<body>
+    <div class="container delete-yarn-container">
+        <div class="delete-yarn-card">
+            <!-- Заголовок -->
+            <div class="delete-yarn-header">
+                <div class="logo-container-delete">
+                    <img src="/static/images/logo.jpg" alt="KnitMatch Logo" class="delete-yarn-logo">
+                </div>
+                <h2 class="mb-3">Удаление пряжи</h2>
+                <p class="mb-0">Это действие нельзя отменить</p>
+            </div>
+            
+            <!-- Тело карточки -->
+            <div class="delete-yarn-body">
+                <!-- Иконка предупреждения -->
+                <div class="warning-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                
+                <h3 class="mb-4">Вы уверены, что хотите удалить эту пряжу?</h3>
+                
+                <!-- Информация о пряже -->
+                <div class="yarn-info-card">
+                    <div class="yarn-color-preview" style="background-color: {{ yarn.color }};"></div>
+                    <div class="yarn-details">
+                        <h4 class="yarn-name">
+                            {% if yarn.name %}
+                                {{ yarn.name }}
+                            {% else %}
+                                {{ yarn.get_yarn_type_display }}
+                            {% endif %}
+                        </h4>
+                        <div class="yarn-type">{{ yarn.get_yarn_type_display }}</div>
+                        
+                        <div class="yarn-stats">
+                            <div class="stat-item">
+                                <div class="stat-value">{{ yarn.amount }}</div>
+                                <div class="stat-label">мотков</div>
+                            </div>
+                            {% if yarn.weight %}
+                            <div class="stat-item">
+                                <div class="stat-value">{{ yarn.weight }}</div>
+                                <div class="stat-label">грамм</div>
+                            </div>
+                            {% endif %}
+                            <div class="stat-item">
+                                <div class="stat-value">
+                                    <i class="fas fa-palette" style="color: {{ yarn.color }};"></i>
+                                </div>
+                                <div class="stat-label">цвет</div>
+                            </div>
+                        </div>
+                        
+                        <div class="yarn-date">
+                            <i class="fas fa-calendar me-1"></i>
+                            Добавлено: {{ yarn.created_at|date:"d.m.Y" }}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Предупреждение -->
+                <div class="warning-text">
+                    <i class="fas fa-exclamation-circle"></i>
+                    Эта пряжа будет удалена из вашей коллекции. <br>
+                    Вы не сможете восстановить ее после удаления.
+                </div>
+                
+                <!-- Форма удаления -->
+                <form method="post" action="{% url 'delete_yarn' yarn.id %}">
+                    {% csrf_token %}
+                    
+                    <!-- Кнопки действия -->
+                    <div class="action-buttons-delete">
+                        <button type="submit" class="btn-delete">
+                            <i class="fas fa-trash me-2"></i>Да, удалить
+                        </button>
+                        <a href="{% url 'my_yarn' %}" class="btn-cancel-delete text-decoration-none">
+                            <i class="fas fa-times me-2"></i>Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Добавляем анимацию при наведении на кнопку удаления
+        document.querySelector('.btn-delete').addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.05)';
+        });
+        
+        document.querySelector('.btn-delete').addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+        });
+        
+        // Предупреждение при попытке закрыть страницу
+        window.addEventListener('beforeunload', function (e) {
+            const formSubmitted = document.querySelector('form').dataset.submitted;
+            if (!formSubmitted) {
+                e.preventDefault();
+                e.returnValue = 'Вы уверены, что хотите покинуть страницу? Ваши изменения могут не сохраниться.';
+            }
+        });
+        
+        // Отмечаем форму как отправленную при отправке
+        document.querySelector('form').addEventListener('submit', function() {
+            this.dataset.submitted = 'true';
+        });
+    </script>
+</body>
+</html>
