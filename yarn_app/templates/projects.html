@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Схемы для вязания - KnitMatch</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/projects.css">
+    <style>
+        .pattern-card {
+            animation: fadeInUp 0.3s ease forwards;
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Навигация -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'home' %}">
+                <div class="d-flex align-items-center">
+                    <img src="/static/images/logo.jpg" alt="Logo" height="60" class="rounded-circle me-2">
+                    <div>
+                        <span class="fw-bold" style="color: #8a4fff; font-size: 1.4rem;">Knit</span>
+                        <span class="fw-bold" style="color: #00d4aa; font-size: 1.4rem;">Match</span>
+                    </div>
+                </div>
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="navbar-nav ms-auto">
+                    <a href="{% url 'home' %}" class="nav-link me-2">
+                        <button class="btn nav-btn">
+                            <i class="fas fa-home me-1"></i>Главная
+                        </button>
+                    </a>
+                    <a href="{% url 'projects' %}" class="nav-link me-2">
+                        <button class="btn nav-btn active">
+                            <i class="fas fa-project-diagram me-1"></i>Схемы
+                        </button>
+                    </a>
+                    <a href="#" class="nav-link me-2">
+                        <button class="btn nav-btn">
+                            <i class="fas fa-heart me-1"></i>Избранное
+                        </button>
+                    </a>
+                    <a href="{% url 'my_yarn' %}" class="nav-link me-2">
+                        <button class="btn nav-btn">
+                            <i class="fas fa-box me-1"></i>Моя пряжа
+                        </button>
+                    </a>
+                    <div class="nav-link">
+                        <a href="{% url 'logout' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-sign-out-alt me-1"></i>Выйти
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Герой-секция -->
+    <section class="hero-section">
+        <div class="container text-center">
+            <h1 class="hero-title">
+                Коллекция <span class="text-gradient">схем для вязания</span>
+            </h1>
+            <p class="hero-subtitle">
+                 Находите подходящие схемы, добавляйте в избранное!
+            </p>
+        </div>
+    </section>
+
+    <!-- Основной контент -->
+    <main class="main-content py-4">
+        <div class="container">
+            <!-- Статистика -->
+            <div class="stats-container" id="stats">
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-1">
+                        <i class="fas fa-cube"></i>
+                    </div>
+                    <div class="stat-number" id="totalPatterns">0</div>
+                    <div class="stat-label">Всего схем</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-2">
+                        <i class="fas fa-gift"></i>
+                    </div>
+                    <div class="stat-number" id="freePatterns">0</div>
+                    <div class="stat-label">Бесплатные</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-3">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="stat-number" id="favoritesCount">0</div>
+                    <div class="stat-label">В избранном</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-4">
+                        <i class="fas fa-download"></i>
+                    </div>
+                    <div class="stat-number" id="lastUpdate">0</div>
+                    <div class="stat-label">Обновлено</div>
+                </div>
+            </div>
+
+            <!-- Поиск и фильтры -->
+            <div class="row">
+                <div class="col-lg-3">
+                    <div class="filter-card">
+                        <div class="filter-header">
+                            <h3 class="filter-title"><i class="fas fa-filter me-2"></i>Фильтры</h3>
+                        </div>
+                        
+                        <!-- Сложность -->
+                        <div class="filter-group">
+                            <label class="filter-label">Сложность</label>
+                            <select class="filter-select" id="difficultyFilter">
+                                <option value="">Все уровни</option>
+                                <option value="beginner">Начинающий</option>
+                                <option value="easy">Легкий</option>
+                                <option value="intermediate">Средний</option>
+                                <option value="experienced">Опытный</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Тип пряжи -->
+                        <div class="filter-group">
+                            <label class="filter-label">Тип пряжи</label>
+                            <select class="filter-select" id="yarnWeightFilter">
+                                <option value="">Любая пряжа</option>
+                                <option value="lace">Кружевная</option>
+                                <option value="fingering">Чулочная</option>
+                                <option value="sport">Спортивная</option>
+                                <option value="dk">DK</option>
+                                <option value="worsted">Камвольная</option>
+                                <option value="bulky">Толстая</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Категория -->
+                        <div class="filter-group">
+                            <label class="filter-label">Категория</label>
+                            <select class="filter-select" id="categoryFilter">
+                                <option value="">Все категории</option>
+                                <option value="sweater">Свитера</option>
+                                <option value="socks">Носки</option>
+                                <option value="hat">Шапки</option>
+                                <option value="scarf">Шарфы</option>
+                                <option value="blanket">Пледы</option>
+                                <option value="toy">Игрушки</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Чекбоксы -->
+                        <div class="filter-group">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="freeOnly">
+                                <label class="form-check-label" for="freeOnly">
+                                    Только бесплатные
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="withPhotos">
+                                <label class="form-check-label" for="withPhotos">
+                                    Только с фото
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="highRated">
+                                <label class="form-check-label" for="highRated">
+                                    Высокий рейтинг (4+)
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-primary w-100 mt-3" onclick="applyFilters()">
+                            <i class="fas fa-check me-2"></i>Применить
+                        </button>
+                        <button class="btn btn-outline-primary w-100 mt-2" onclick="resetFilters()">
+                            <i class="fas fa-redo me-2"></i>Сбросить
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="col-lg-9">
+                    <!-- Панель поиска -->
+                    <div class="search-box mb-4">
+                        <div class="row align-items-center">
+                            <div class="col-md-8 mb-3 mb-md-0">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="searchInput" 
+                                           placeholder="Поиск схем по названию, автору или описанию...">
+                                </div>
+                            </div>
+                            <div class="col-md-2 mb-3 mb-md-0">
+                                <button class="btn btn-primary w-100" onclick="searchPatterns()">
+                                    <i class="fas fa-search me-2"></i>Найти
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-primary w-100" onclick="loadPatternsFromAPI()">
+                                    <i class="fas fa-sync-alt me-2"></i>Обновить
+                                </button>
+                            </div>
+                        </div>
+                        <div class="active-filters mt-2" id="activeFilters">
+                            <!-- Активные фильтры будут появляться здесь -->
+                        </div>
+                    </div>
+                    
+                    <!-- Результаты -->
+                    <div id="patternsContainer">
+                        <!-- Скелетон при первой загрузке -->
+                        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="skeletonLoader">
+                            <div class="col">
+                                <div class="skeleton-card">
+                                    <div class="skeleton-image skeleton"></div>
+                                    <div class="skeleton-title skeleton"></div>
+                                    <div class="skeleton-text skeleton"></div>
+                                    <div class="skeleton-button skeleton"></div>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="skeleton-card">
+                                    <div class="skeleton-image skeleton"></div>
+                                    <div class="skeleton-title skeleton"></div>
+                                    <div class="skeleton-text skeleton"></div>
+                                    <div class="skeleton-button skeleton"></div>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="skeleton-card">
+                                    <div class="skeleton-image skeleton"></div>
+                                    <div class="skeleton-title skeleton"></div>
+                                    <div class="skeleton-text skeleton"></div>
+                                    <div class="skeleton-button skeleton"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Пагинация -->
+                    <div class="pagination-container" id="paginationContainer" style="display: none;">
+                        <nav aria-label="Навигация по страницам">
+                            <ul class="pagination" id="pagination">
+                                <!-- Пагинация будет генерироваться динамически -->
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Футер -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="footer-title">
+                        <img src="/static/images/logo.jpg" alt="KnitMatch" class="footer-logo">
+                        <div>
+                            <span style="color: #8a4fff; font-weight: 600;">Knit</span>
+                            <span style="color: #00d4aa; font-weight: 600;">Match</span>
+                        </div>
+                    </div>
+                    <p class="footer-text">
+                        Сообщество вязальщиц, созданное с <i class="fas fa-heart footer-heart"></i> для творчества и вдохновения
+                    </p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <p class="text-muted mb-0">© 2026 KnitMatch. Все права защищены.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Данные
+        let allPatterns = [];
+        let filteredPatterns = [];
+        let currentPage = 1;
+        const patternsPerPage = 9;
+        let favorites = JSON.parse(localStorage.getItem('knitmatch_favorites')) || [];
+        
+        // Функция показа уведомления
+        function showNotification(message, type = 'info') {
+            // Удаляем старое уведомление
+            const oldNotification = document.querySelector('.notification');
+            if (oldNotification) oldNotification.remove();
+            
+            const notification = document.createElement('div');
+            notification.className = `notification alert alert-${type}`;
+            notification.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-sm" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Автоматическое удаление через 5 секунд
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+        
+        // Загрузка схем из API
+        async function loadPatternsFromAPI() {
+            const container = document.getElementById('patternsContainer');
+            
+            // Показываем скелетон
+            container.innerHTML = `
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="skeletonLoader">
+                    ${Array(6).fill().map((_, i) => `
+                        <div class="col">
+                            <div class="skeleton-card">
+                                <div class="skeleton-image skeleton"></div>
+                                <div class="skeleton-title skeleton"></div>
+                                <div class="skeleton-text skeleton"></div>
+                                <div class="skeleton-button skeleton"></div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            try {
+                // Пробуем загрузить из реального API
+                console.log('Загрузка схем из API...');
+                
+                // Ваш реальный URL API
+                // const response = await fetch('/api/patterns/');
+                
+                // Имитируем задержку сети
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Проверяем, есть ли сохранённые данные
+                const savedPatterns = localStorage.getItem('knitmatch_patterns_backup');
+                let patterns;
+                
+                if (savedPatterns) {
+                    // Используем сохранённые данные
+                    patterns = JSON.parse(savedPatterns);
+                    showNotification('Используем кэшированные данные', 'info');
+                } else {
+                    // Генерируем демо-данные
+                    patterns = generateDemoPatterns(50);
+                    // Сохраняем в localStorage для будущего использования
+                    localStorage.setItem('knitmatch_patterns_backup', JSON.stringify(patterns));
+                }
+                
+                allPatterns = patterns;
+                filteredPatterns = [...allPatterns];
+                
+                localStorage.setItem('knitmatch_patterns', JSON.stringify(allPatterns));
+                localStorage.setItem('knitmatch_last_update', new Date().toLocaleTimeString());
+                
+                updateStats();
+                displayPatterns();
+                showNotification(`Загружено ${patterns.length} схем`, 'success');
+                
+            } catch (error) {
+                console.error('Ошибка загрузки:', error);
+                
+                // Пробуем загрузить из localStorage
+                const savedPatterns = localStorage.getItem('knitmatch_patterns');
+                if (savedPatterns) {
+                    allPatterns = JSON.parse(savedPatterns);
+                    filteredPatterns = [...allPatterns];
+                    updateStats();
+                    displayPatterns();
+                    showNotification('Используем данные из кэша', 'warning');
+                } else {
+                    // Показываем сообщение об ошибке
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <i class="fas fa-wifi-slash"></i>
+                            </div>
+                            <h3 class="mb-3">Нет соединения</h3>
+                            <p class="mb-4 text-muted">Не удалось загрузить схемы. Проверьте подключение к интернету.</p>
+                            <div class="d-flex justify-content-center gap-2">
+                                <button class="btn btn-primary" onclick="loadDemoPatterns()">
+                                    <i class="fas fa-eye me-2"></i>Показать демо
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="loadPatternsFromAPI()">
+                                    <i class="fas fa-redo me-2"></i>Повторить
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        // Загрузка демо-данных
+        function loadDemoPatterns() {
+            const patterns = generateDemoPatterns(36);
+            allPatterns = patterns;
+            filteredPatterns = [...allPatterns];
+            
+            localStorage.setItem('knitmatch_patterns', JSON.stringify(allPatterns));
+            localStorage.setItem('knitmatch_last_update', 'Демо данные');
+            
+            updateStats();
+            displayPatterns();
+            showNotification('Загружены демо-данные', 'info');
+        }
+        
+        // Генерация демо-данных
+        function generateDemoPatterns(count) {
+            const difficulties = ['beginner', 'easy', 'intermediate', 'experienced'];
+            const yarnWeights = ['Кружевная', 'Чулочная', 'Спортивная', 'DK', 'Камвольная', 'Толстая'];
+            const categories = ['Свитер', 'Носки', 'Шапка', 'Шарф', 'Плед', 'Игрушка'];
+            const crafts = ['Спицы', 'Крючок'];
+            const authors = ['Анна Иванова', 'Мария Смирнова', 'Елена Петрова', 'Ольга Сидорова'];
+            
+            const patterns = [];
+            
+            for (let i = 1; i <= count; i++) {
+                const difficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
+                const yarnWeight = yarnWeights[Math.floor(Math.random() * yarnWeights.length)];
+                const category = categories[Math.floor(Math.random() * categories.length)];
+                const craft = crafts[Math.floor(Math.random() * crafts.length)];
+                const author = authors[Math.floor(Math.random() * authors.length)];
+                const isFree = Math.random() > 0.3;
+                const rating = parseFloat((Math.random() * 2 + 3).toFixed(1));
+                
+                patterns.push({
+                    id: `pattern_${i}`,
+                    name: `${category} "${getRandomName()}"`,
+                    author: author,
+                    description: `Красивая схема для вязания ${category.toLowerCase()}. ${getDifficultyDescription(difficulty)}`,
+                    difficulty: difficulty,
+                    yarn_weight: yarnWeight,
+                    category: category,
+                    craft: craft,
+                    is_free: isFree,
+                    rating: rating,
+                    rating_count: Math.floor(Math.random() * 100) + 1,
+                    photo_url: `https://picsum.photos/400/300?random=${i}&blur=2`,
+                    pattern_url: `#`
+                });
+            }
+            
+            return patterns;
+        }
+        
+        function getRandomName() {
+            const names = [
+                'Зимняя сказка', 'Весенний бриз', 'Летнее настроение', 'Осенний лист',
+                'Морозные узоры', 'Тёплые объятия', 'Нежные петли', 'Уютный вечер',
+                'Снежинка', 'Мандаринка', 'Клубничка', 'Лаванда', 'Василёк', 'Ромашка'
+            ];
+            return names[Math.floor(Math.random() * names.length)];
+        }
+        
+        function getDifficultyDescription(difficulty) {
+            const descriptions = {
+                'beginner': 'Идеально для начинающих вязальщиц.',
+                'easy': 'Простая и понятная схема для всех.',
+                'intermediate': 'Подойдет для опытных вязальщиц.',
+                'experienced': 'Сложный проект для мастеров вязания.'
+            };
+            return descriptions[difficulty] || '';
+        }
+        
+        // Обновление статистики
+        function updateStats() {
+    try {
+        // Проверяем существование элементов перед обновлением
+        const totalElement = document.getElementById('totalPatterns');
+        const freeElement = document.getElementById('freePatterns');
+        const premiumElement = document.getElementById('premiumPatterns');
+        const avgElement = document.getElementById('avgDifficulty');
+        
+        if (!totalElement || !freeElement || !premiumElement || !avgElement) {
+            console.warn('Некоторые элементы статистики не найдены на странице');
+            return;
+        }
+        
+        // Подсчет статистики
+        const total = allPatterns.length;
+        const free = allPatterns.filter(p => p.is_free).length;
+        const premium = total - free;
+        
+        // Средняя сложность
+        const difficultyMap = { 'beginner': 1, 'easy': 2, 'intermediate': 3, 'experienced': 4 };
+        const avgDifficulty = allPatterns.length > 0 
+            ? allPatterns.reduce((sum, p) => sum + (difficultyMap[p.difficulty] || 2), 0) / allPatterns.length
+            : 0;
+        
+        // Обновляем значения ТОЛЬКО если элементы существуют
+        totalElement.textContent = total;
+        freeElement.textContent = free;
+        premiumElement.textContent = premium;
+        avgElement.textContent = avgDifficulty.toFixed(1);
+        
+        // Показываем блок статистики
+        const statsSection = document.querySelector('.stats-section');
+        if (statsSection && total > 0) {
+            statsSection.style.display = 'block';
+        }
+        
+    } catch (error) {
+        console.error('Ошибка в updateStats:', error);
+    }
+}
+        
+        // Отображение схем
+        function displayPatterns() {
+            const container = document.getElementById('patternsContainer');
+            const paginationContainer = document.getElementById('paginationContainer');
+            
+            if (filteredPatterns.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <h3 class="mb-3">Схемы не найдены</h3>
+                        <p class="text-muted mb-4">Попробуйте изменить фильтры поиска</p>
+                        <button class="btn btn-primary" onclick="resetFilters()">
+                            <i class="fas fa-redo me-2"></i>Сбросить фильтры
+                        </button>
+                    </div>
+                `;
+                paginationContainer.style.display = 'none';
+                return;
+            }
+            
+            // Пагинация
+            const totalPages = Math.ceil(filteredPatterns.length / patternsPerPage);
+            const startIndex = (currentPage - 1) * patternsPerPage;
+            const endIndex = startIndex + patternsPerPage;
+            const patternsToShow = filteredPatterns.slice(startIndex, endIndex);
+            
+            // Генерация HTML для карточек
+            let html = '<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">';
+            
+            patternsToShow.forEach((pattern, index) => {
+                const isFavorite = favorites.includes(pattern.id);
+                
+                html += `
+                    <div class="col">
+                        <div class="pattern-card" style="animation-delay: ${index * 0.05}s">
+                            <div class="pattern-image-container">
+                                <img src="${pattern.photo_url}" 
+                                     class="pattern-image" 
+                                     alt="${pattern.name}"
+                                     loading="lazy"
+                                     onload="this.classList.remove('loading')"
+                                     onerror="this.src='/static/images/pattern-placeholder.jpg'; this.onerror=null; this.classList.add('error')">
+                                ${pattern.is_free ? 
+                                    '<span class="pattern-badge free-badge">БЕСПЛАТНО</span>' : 
+                                    '<span class="pattern-badge premium-badge">ПРЕМИУМ</span>'}
+                                <button class="favorite-btn ${isFavorite ? 'active' : ''}" 
+                                        onclick="toggleFavorite('${pattern.id}', this)"
+                                        title="${isFavorite ? 'Удалить из избранного' : 'Добавить в избранное'}">
+                                    <i class="fas fa-heart"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="pattern-info">
+                                <h5 class="pattern-title">${pattern.name}</h5>
+                                
+                                <p class="pattern-author">
+                                    <i class="fas fa-user me-1"></i>${pattern.author}
+                                </p>
+                                
+                                <div class="pattern-meta">
+                                    <span class="meta-item">
+                                        <i class="fas fa-signal"></i>
+                                        ${getDifficultyLabel(pattern.difficulty)}
+                                    </span>
+                                    
+                                    <span class="meta-item">
+                                        <i class="fas fa-yarn"></i>
+                                        ${pattern.yarn_weight}
+                                    </span>
+                                    
+                                    <span class="meta-item">
+                                        <i class="fas fa-${pattern.craft === 'Крючок' ? 'crochet' : 'mitten'}"></i>
+                                        ${pattern.craft}
+                                    </span>
+                                </div>
+                                
+                                <div class="pattern-rating">
+                                    <div class="rating-stars">
+                                        ${getStarsHTML(pattern.rating)}
+                                    </div>
+                                    <span class="rating-count">${pattern.rating.toFixed(1)} (${pattern.rating_count})</span>
+                                </div>
+                                
+                                <div class="pattern-actions">
+                                    <a href="${pattern.pattern_url}" 
+                                       class="btn btn-view"
+                                       onclick="event.preventDefault(); showPatternDetails('${pattern.id}')">
+                                        <i class="fas fa-eye me-1"></i>Посмотреть
+                                    </a>
+                                    <button class="btn btn-favorite ${isFavorite ? 'active' : ''}" 
+                                            onclick="toggleFavorite('${pattern.id}')">
+                                        <i class="fas fa-heart me-1"></i>
+                                        ${isFavorite ? 'Удалить' : 'В избранное'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+            
+            // Обновление пагинации
+            if (totalPages > 1) {
+                setupPagination(totalPages);
+                paginationContainer.style.display = 'flex';
+            } else {
+                paginationContainer.style.display = 'none';
+            }
+        }
+        
+        // Показать детали схемы
+        function showPatternDetails(patternId) {
+            const pattern = allPatterns.find(p => p.id === patternId);
+            if (!pattern) return;
+            
+            const modalHtml = `
+                <div class="modal fade" id="patternModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">${pattern.name}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <img src="${pattern.photo_url}" 
+                                             class="img-fluid rounded mb-3" 
+                                             alt="${pattern.name}"
+                                             style="max-height: 300px; object-fit: cover;">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Автор:</strong> ${pattern.author}</p>
+                                        <p><strong>Сложность:</strong> ${getDifficultyLabel(pattern.difficulty)}</p>
+                                        <p><strong>Тип пряжи:</strong> ${pattern.yarn_weight}</p>
+                                        <p><strong>Категория:</strong> ${pattern.category}</p>
+                                        <p><strong>Техника:</strong> ${pattern.craft}</p>
+                                        <p><strong>Рейтинг:</strong> ${pattern.rating.toFixed(1)}/5 (${pattern.rating_count} оценок)</p>
+                                        <p><strong>Статус:</strong> ${pattern.is_free ? 'Бесплатно' : 'Платно'}</p>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <h6>Описание:</h6>
+                                    <p>${pattern.description}</p>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                                <a href="${pattern.pattern_url}" target="_blank" class="btn btn-primary">
+                                    <i class="fas fa-external-link-alt me-2"></i>Открыть схему
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Удаляем старый модал если есть
+            const oldModal = document.getElementById('patternModal');
+            if (oldModal) oldModal.remove();
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            const modal = new bootstrap.Modal(document.getElementById('patternModal'));
+            modal.show();
+        }
+        
+        // Звезды рейтинга
+        function getStarsHTML(rating) {
+            let stars = '';
+            const fullStars = Math.floor(rating);
+            const halfStar = rating % 1 >= 0.5;
+            
+            for (let i = 1; i <= 5; i++) {
+                if (i <= fullStars) {
+                    stars += '<i class="fas fa-star"></i>';
+                } else if (i === fullStars + 1 && halfStar) {
+                    stars += '<i class="fas fa-star-half-alt"></i>';
+                } else {
+                    stars += '<i class="far fa-star"></i>';
+                }
+            }
+            
+            return stars;
+        }
+        
+        // Метка сложности
+        function getDifficultyLabel(difficulty) {
+            const labels = {
+                'beginner': 'Начинающий',
+                'easy': 'Легкий',
+                'intermediate': 'Средний',
+                'experienced': 'Опытный'
+            };
+            return labels[difficulty] || difficulty;
+        }
+        
+        // Переключение избранного
+        function toggleFavorite(patternId, button = null) {
+            const index = favorites.indexOf(patternId);
+            
+            if (index === -1) {
+                favorites.push(patternId);
+                showNotification('Схема добавлена в избранное!', 'success');
+            } else {
+                favorites.splice(index, 1);
+                showNotification('Схема удалена из избранного', 'info');
+            }
+            
+            localStorage.setItem('knitmatch_favorites', JSON.stringify(favorites));
+            updateStats();
+            
+            // Обновление UI
+            if (button) {
+                button.classList.toggle('active');
+            }
+            displayPatterns();
+        }
+        
+        // Поиск схем
+        function searchPatterns() {
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            if (!searchQuery) {
+                filteredPatterns = [...allPatterns];
+            } else {
+                filteredPatterns = allPatterns.filter(pattern => {
+                    return pattern.name.toLowerCase().includes(searchQuery) ||
+                           (pattern.author && pattern.author.toLowerCase().includes(searchQuery)) ||
+                           (pattern.description && pattern.description.toLowerCase().includes(searchQuery));
+                });
+            }
+            
+            currentPage = 1;
+            applyFilters();
+        }
+        
+        // Применение фильтров
+        function applyFilters() {
+            const difficulty = document.getElementById('difficultyFilter').value;
+            const yarnWeight = document.getElementById('yarnWeightFilter').value;
+            const category = document.getElementById('categoryFilter').value;
+            const freeOnly = document.getElementById('freeOnly').checked;
+            const withPhotos = document.getElementById('withPhotos').checked;
+            const highRated = document.getElementById('highRated').checked;
+            
+            // Если нет фильтров по поиску, используем все схемы
+            let patterns = filteredPatterns.length > 0 ? filteredPatterns : allPatterns;
+            
+            patterns = patterns.filter(pattern => {
+                if (difficulty && pattern.difficulty !== difficulty) return false;
+                if (yarnWeight && pattern.yarn_weight !== yarnWeight) return false;
+                if (category && pattern.category !== category) return false;
+                if (freeOnly && !pattern.is_free) return false;
+                if (withPhotos && (!pattern.photo_url || pattern.photo_url === '#')) return false;
+                if (highRated && (!pattern.rating || pattern.rating < 4)) return false;
+                return true;
+            });
+            
+            filteredPatterns = patterns;
+            currentPage = 1;
+            displayPatterns();
+            updateActiveFilters();
+        }
+        
+        // Сброс фильтров
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('difficultyFilter').value = '';
+            document.getElementById('yarnWeightFilter').value = '';
+            document.getElementById('categoryFilter').value = '';
+            document.getElementById('freeOnly').checked = false;
+            document.getElementById('withPhotos').checked = false;
+            document.getElementById('highRated').checked = false;
+            
+            filteredPatterns = [...allPatterns];
+            currentPage = 1;
+            displayPatterns();
+            document.getElementById('activeFilters').innerHTML = '';
+        }
+        
+        // Обновление активных фильтров
+        function updateActiveFilters() {
+            const activeFiltersDiv = document.getElementById('activeFilters');
+            let filtersHTML = '';
+            
+            const searchQuery = document.getElementById('searchInput').value;
+            if (searchQuery) {
+                filtersHTML += `<span class="filter-tag">Поиск: "${searchQuery}"</span>`;
+            }
+            
+            const difficulty = document.getElementById('difficultyFilter').value;
+            if (difficulty) {
+                filtersHTML += `<span class="filter-tag">${getDifficultyLabel(difficulty)}</span>`;
+            }
+            
+            const yarnWeight = document.getElementById('yarnWeightFilter').value;
+            if (yarnWeight) {
+                filtersHTML += `<span class="filter-tag">${yarnWeight}</span>`;
+            }
+            
+            const category = document.getElementById('categoryFilter').value;
+            if (category) {
+                filtersHTML += `<span class="filter-tag">${category}</span>`;
+            }
+            
+            const freeOnly = document.getElementById('freeOnly').checked;
+            if (freeOnly) {
+                filtersHTML += `<span class="filter-tag">Бесплатные</span>`;
+            }
+            
+            activeFiltersDiv.innerHTML = filtersHTML;
+        }
+        
+        // Настройка пагинации
+        function setupPagination(totalPages) {
+            const pagination = document.getElementById('pagination');
+            let html = '';
+            
+            // Предыдущая
+            if (currentPage > 1) {
+                html += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(${currentPage - 1})"><i class="fas fa-chevron-left"></i></a></li>`;
+            }
+            
+            // Страницы
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                    html += `<li class="page-item ${i === currentPage ? 'active' : ''}"><a class="page-link" href="#" onclick="changePage(${i})">${i}</a></li>`;
+                } else if (i === currentPage - 2 || i === currentPage + 2) {
+                    html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                }
+            }
+            
+            // Следующая
+            if (currentPage < totalPages) {
+                html += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(${currentPage + 1})"><i class="fas fa-chevron-right"></i></a></li>`;
+            }
+            
+            pagination.innerHTML = html;
+        }
+        
+        // Смена страницы
+        function changePage(page) {
+            currentPage = page;
+            displayPatterns();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // Загрузка данных при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            // Загружаем избранное
+            favorites = JSON.parse(localStorage.getItem('knitmatch_favorites')) || [];
+            
+            // Проверяем, есть ли сохранённые схемы
+            const savedPatterns = localStorage.getItem('knitmatch_patterns');
+            if (savedPatterns) {
+                allPatterns = JSON.parse(savedPatterns);
+                filteredPatterns = [...allPatterns];
+                updateStats();
+                displayPatterns();
+            } else {
+                // Автоматически загружаем демо-данные
+                setTimeout(() => loadPatternsFromAPI(), 500);
+            }
+        });
+    </script>
+</body>
+</html>

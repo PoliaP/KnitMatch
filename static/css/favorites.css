@@ -1,0 +1,114 @@
+/* Дополнительные стили для страницы избранного */
+        .favorites-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .filters-container {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(138, 79, 255, 0.1);
+        }
+        
+        .sort-options {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .sort-btn {
+            background: transparent;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 0.5rem 1.2rem;
+            color: #666;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .sort-btn:hover, .sort-btn.active {
+            background: linear-gradient(45deg, #8a4fff, #ff6b8b);
+            color: white;
+            border-color: transparent;
+        }
+        
+        .empty-favorites {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+        }
+        
+        .empty-icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(45deg, rgba(138, 79, 255, 0.1), rgba(255, 107, 139, 0.1));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+        }
+        
+        .empty-icon i {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #8a4fff, #ff6b8b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stats-banner {
+            background: linear-gradient(135deg, #8a4fff, #ff6b8b);
+            color: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .stats-banner .stat {
+            text-align: center;
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        .stats-banner .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stats-banner .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .favorites-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .stats-banner {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .stats-banner .stat {
+                min-width: 100%;
+            }
+        }

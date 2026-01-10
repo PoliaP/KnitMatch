@@ -1,10 +1,13 @@
-# views.py - обновленная версия без редактирования
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login, authenticate, logout as auth_logout
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import logout as auth_logout
-from .models import UserYarn
+from django.http import JsonResponse
+from django.db.models import Q, Count, Sum
+from .models import UserYarn, Pattern, Project, ProjectYarn, Favorite
+from .ravelry_api import RavelryAPI, get_yarn_type_mapping
+
+# Загрузка схем при первом запуске
 
 def home(request):
     """Главная страница"""
@@ -53,12 +56,8 @@ def my_yarn(request):
     # Считаем ОБЩИЙ ВЕС: количество мотков × вес одного мотка
     total_weight = 0
     for yarn in yarns:
-        try:
-            if hasattr(yarn, 'weight') and yarn.weight:
-                # Умножаем количество мотков на вес одного мотка
-                total_weight += yarn.amount * yarn.weight
-        except:
-            pass
+        if yarn.weight:
+            total_weight += yarn.amount * yarn.weight
     
     # Получаем уникальные цвета
     colors_set = set()
@@ -148,25 +147,399 @@ def delete_yarn(request, yarn_id):
     return render(request, 'delete_yarn.html', {'yarn': yarn})
 
 @login_required
-def use_in_project(request, yarn_id):
-    """Добавить пряжу в проект (заглушка)"""
-    # Пока просто редирект обратно
-    return redirect('my_yarn')
-
-@login_required
 def yarn_detail(request, yarn_id):
     """Детальная информация о пряже"""
     try:
         yarn = UserYarn.objects.get(id=yarn_id, user=request.user)
-        return render(request, 'yarn_detail.html', {'yarn': yarn})
+        
+        # Рассчитываем общий вес для этой карточки
+        total_weight = 0
+        if yarn.weight:
+            total_weight = yarn.amount * yarn.weight
+        
+        context = {
+            'yarn': yarn,
+            'total_weight': total_weight,
+        }
+        
+        return render(request, 'yarn_detail.html', context)
     except UserYarn.DoesNotExist:
         return redirect('my_yarn')
-    
-# Дополнительные страницы (заглушки)
-def projects(request):
-    """Страница проектов"""
-    return render(request, 'projects.html')
 
+@login_required
+def yarn_projects(request, yarn_id):
+    """Поиск проектов для конкретной пряжи"""
+    yarn = get_object_or_404(UserYarn, id=yarn_id, user=request.user)
+    
+    # Получаем соответствующие веса пряжи для Ravelry
+    type_mapping = get_yarn_type_mapping()
+    ravelry_weights = type_mapping.get(yarn.yarn_type, [])
+    
+    # Ищем схемы
+    matching_patterns = Pattern.objects.none()
+    for weight in ravelry_weights:
+        patterns = Pattern.objects.filter(
+            Q(yarn_weight__icontains=weight)
+        )
+        matching_patterns = matching_patterns | patterns
+    
+    # Убираем дубликаты и сортируем по рейтингу
+    matching_patterns = matching_patterns.distinct().order_by('-rating')[:20]
+    
+    # Получаем все избранные схемы пользователя
+    favorite_pattern_ids = Favorite.objects.filter(
+        user=request.user,
+        pattern__in=matching_patterns
+    ).values_list('pattern_id', flat=True)
+    
+    context = {
+        'yarn': yarn,
+        'patterns': matching_patterns,
+        'favorite_pattern_ids': list(favorite_pattern_ids),
+        'search_message': f"Найдено {matching_patterns.count()} схем для пряжи: {yarn.get_yarn_type_display()}"
+    }
+    
+    return render(request, 'yarn_projects.html', context)
+
+@login_required
+def use_in_project(request, yarn_id):
+    """Добавить пряжу в проект (заглушка)"""
+    return redirect('my_yarn')
+
+@login_required
+def projects(request):
+    """Страница проектов с выгрузкой из API"""
+    user_projects = Project.objects.filter(user=request.user).order_by('-created_at')
+    
+    # Статистика проектов
+    projects_stats = {
+        'total': user_projects.count(),
+        'planned': user_projects.filter(status='planned').count(),
+        'in_progress': user_projects.filter(status='in_progress').count(),
+        'completed': user_projects.filter(status='completed').count(),
+    }
+    
+    # Получаем свежие схемы из API
+    recent_patterns = Pattern.objects.order_by('-created_at')[:10]
+    
+    # Анализ пряжи пользователя
+    user_yarns = UserYarn.objects.filter(user=request.user)
+    
+    # Считаем статистику вручную
+    yarn_analysis = {
+        'by_type': {},
+        'total_yarns': user_yarns.count(),
+        'total_motki': 0,
+        'total_weight': 0,
+        'colors_count': 0,
+        'types_count': 0,
+    }
+    
+    colors_set = set()
+    types_set = set()
+    
+    for yarn in user_yarns:
+        # Считаем общий вес
+        yarn_weight = yarn.total_weight
+        yarn_analysis['total_weight'] += yarn_weight
+        
+        # Считаем общее количество мотков
+        yarn_analysis['total_motki'] += yarn.amount
+        
+        # Собираем уникальные цвета
+        colors_set.add(yarn.color)
+        types_set.add(yarn.yarn_type)
+        
+        # Группируем по типу пряжи
+        type_display = yarn.get_yarn_type_display()
+        if type_display not in yarn_analysis['by_type']:
+            yarn_analysis['by_type'][type_display] = {
+                'amount': 0,
+                'total_weight': 0
+            }
+        
+        yarn_analysis['by_type'][type_display]['amount'] += yarn.amount
+        yarn_analysis['by_type'][type_display]['total_weight'] += yarn_weight
+    
+    yarn_analysis['colors_count'] = len(colors_set)
+    yarn_analysis['types_count'] = len(types_set)
+    
+    context = {
+        'projects': user_projects,
+        'recent_patterns': recent_patterns,
+        'stats': projects_stats,
+        'yarn_analysis': yarn_analysis,
+    }
+    
+    return render(request, 'projects.html', context)
+
+@login_required
+def project_detail(request, project_id):
+    """Детальная страница проекта"""
+    project = get_object_or_404(Project, id=project_id, user=request.user)
+    project_yarns = ProjectYarn.objects.filter(project=project)
+    
+    # Считаем использованную пряжу
+    used_yarn_stats = {
+        'total_motki': 0,
+        'total_weight': 0,
+    }
+    
+    for project_yarn in project_yarns:
+        yarn = project_yarn.user_yarn
+        used_yarn_stats['total_motki'] += project_yarn.amount_used
+        if yarn.weight:
+            used_yarn_stats['total_weight'] += project_yarn.amount_used * yarn.weight
+    
+    context = {
+        'project': project,
+        'project_yarns': project_yarns,
+        'used_yarn_stats': used_yarn_stats,
+    }
+    
+    return render(request, 'project_detail.html', context)
+
+@login_required
+def add_project(request):
+    """Создание нового проекта"""
+    user_yarns = UserYarn.objects.filter(user=request.user)
+    
+    # Получаем ID схемы из GET параметров (если перешли с поиска)
+    pattern_id = request.GET.get('pattern')
+    initial_pattern = None
+    if pattern_id:
+        try:
+            initial_pattern = Pattern.objects.get(id=pattern_id)
+        except Pattern.DoesNotExist:
+            pass
+    
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        pattern_id = request.POST.get('pattern')
+        status = request.POST.get('status', 'planned')
+        description = request.POST.get('description', '')
+        
+        if name:
+            project = Project.objects.create(
+                user=request.user,
+                name=name,
+                pattern_id=pattern_id if pattern_id else None,
+                status=status,
+                description=description,
+            )
+            
+            # Добавляем пряжу к проекту
+            for yarn in user_yarns:
+                amount_key = f'yarn_{yarn.id}'
+                amount_used = request.POST.get(amount_key, '0')
+                
+                if amount_used and int(amount_used) > 0:
+                    ProjectYarn.objects.create(
+                        project=project,
+                        user_yarn=yarn,
+                        amount_used=int(amount_used)
+                    )
+            
+            return redirect('project_detail', project_id=project.id)
+    
+    # Получаем рекомендации схем
+    recommended_patterns = get_recommended_patterns(request.user)
+    
+    context = {
+        'user_yarns': user_yarns,
+        'recommended_patterns': recommended_patterns,
+        'initial_pattern': initial_pattern,
+        'status_choices': Project.STATUS_CHOICES,
+    }
+    
+    return render(request, 'add_project.html', context)
+
+@login_required
+def delete_project(request, project_id):
+    """Удаление проекта"""
+    project = get_object_or_404(Project, id=project_id, user=request.user)
+    
+    if request.method == 'POST':
+        project.delete()
+        return redirect('projects')
+    
+    return render(request, 'delete_project.html', {'project': project})
+
+@login_required
+def pattern_search(request):
+    """Поиск подходящих схем"""
+    user_yarns = UserYarn.objects.filter(user=request.user)
+    
+    # Получаем все уникальные типы пряжи пользователя
+    user_yarn_types = set(user_yarns.values_list('yarn_type', flat=True))
+    
+    # Поиск подходящих схем
+    suitable_patterns = Pattern.objects.none()
+    for yarn_type in user_yarn_types:
+        patterns = get_patterns_by_yarn_type(yarn_type)
+        suitable_patterns = suitable_patterns | patterns
+    
+    # Убираем дубликаты
+    suitable_patterns = suitable_patterns.distinct()
+    
+    # Если нет подходящих, показываем все
+    if not suitable_patterns.exists():
+        suitable_patterns = Pattern.objects.all()
+    
+    # Фильтры
+    difficulty_filter = request.GET.get('difficulty', '')
+    search_query = request.GET.get('search', '')
+    free_only = request.GET.get('free', '')
+    
+    if difficulty_filter:
+        suitable_patterns = suitable_patterns.filter(difficulty=difficulty_filter)
+    
+    if search_query:
+        suitable_patterns = suitable_patterns.filter(name__icontains=search_query)
+    
+    if free_only:
+        suitable_patterns = suitable_patterns.filter(is_free=True)
+    
+    # Ограничиваем количество
+    suitable_patterns = suitable_patterns.order_by('-rating')[:50]
+    
+    # Получаем избранные схемы пользователя
+    favorite_pattern_ids = Favorite.objects.filter(
+        user=request.user,
+        pattern__in=suitable_patterns
+    ).values_list('pattern_id', flat=True)
+    
+    context = {
+        'patterns': suitable_patterns,
+        'user_yarns': user_yarns,
+        'favorite_pattern_ids': list(favorite_pattern_ids),
+        'difficulty_filter': difficulty_filter,
+        'search_query': search_query,
+        'free_only': free_only,
+        'difficulty_choices': [
+            ('', 'Любая сложность'),
+            ('beginner', 'Начинающий'),
+            ('easy', 'Легкий'),
+            ('intermediate', 'Средний'),
+            ('experienced', 'Опытный'),
+        ]
+    }
+    
+    return render(request, 'pattern_search.html', context)
+
+@login_required
+def toggle_favorite(request, pattern_id):
+    """Добавление/удаление схемы из избранного"""
+    pattern = get_object_or_404(Pattern, id=pattern_id)
+    
+    favorite, created = Favorite.objects.get_or_create(
+        user=request.user,
+        pattern=pattern
+    )
+    
+    if not created:
+        favorite.delete()
+        message = "Схема удалена из избранного"
+        is_favorite = False
+    else:
+        message = "Схема добавлена в избранное"
+        is_favorite = True
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'status': 'success', 
+            'message': message,
+            'is_favorite': is_favorite
+        })
+    
+    return redirect(request.META.get('HTTP_REFERER', 'pattern_search'))
+
+@login_required
 def favorites(request):
-    """Страница избранного"""
-    return render(request, 'favorites.html')
+    """Страница избранных схем"""
+    favorite_patterns = Pattern.objects.filter(
+        favorite__user=request.user
+    ).distinct().order_by('-favorite__added_at')
+    
+    context = {
+        'patterns': favorite_patterns,
+    }
+    
+    return render(request, 'favorites.html', context)
+
+@login_required
+def load_more_patterns(request):
+    """AJAX загрузка дополнительных схем"""
+    if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        count, _ = RavelryAPI.fetch_popular_patterns(count=5)
+        
+        if count > 0:
+            # Получаем последние добавленные схемы
+            new_patterns = Pattern.objects.order_by('-created_at')[:5]
+            
+            patterns_data = []
+            for pattern in new_patterns:
+                patterns_data.append({
+                    'id': pattern.id,
+                    'name': pattern.name,
+                    'yarn_weight': pattern.yarn_weight,
+                    'photo_url': pattern.photo_url,
+                    'difficulty': pattern.get_difficulty_display(),
+                    'is_free': pattern.is_free,
+                    'rating': pattern.rating,
+                    'pattern_url': pattern.pattern_url,
+                })
+            
+            return JsonResponse({
+                'success': True,
+                'patterns': patterns_data,
+                'count': len(patterns_data)
+            })
+    
+    return JsonResponse({'success': False})
+
+@login_required
+def refresh_patterns(request):
+    """Обновление базы схем"""
+    if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        count, _ = RavelryAPI.fetch_popular_patterns(count=10)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Загружено {count} новых схем'
+        })
+    
+    return redirect('pattern_search')
+
+# Вспомогательные функции
+def get_recommended_patterns(user):
+    """Получение рекомендованных схем для пользователя"""
+    user_yarns = UserYarn.objects.filter(user=user)
+    
+    if not user_yarns.exists():
+        return Pattern.objects.all()[:10]
+    
+    # Получаем самый распространенный тип пряжи
+    yarn_type_counts = {}
+    for yarn in user_yarns:
+        yarn_type = yarn.yarn_type
+        yarn_type_counts[yarn_type] = yarn_type_counts.get(yarn_type, 0) + 1
+    
+    if yarn_type_counts:
+        # Находим самый частый тип пряжи
+        most_common_type = max(yarn_type_counts.items(), key=lambda x: x[1])[0]
+        return get_patterns_by_yarn_type(most_common_type)[:10]
+    
+    return Pattern.objects.all()[:10]
+
+def get_patterns_by_yarn_type(yarn_type):
+    """Получение схем по типу пряжи"""
+    type_mapping = get_yarn_type_mapping()
+    ravelry_weights = type_mapping.get(yarn_type, [])
+    
+    matching_patterns = Pattern.objects.none()
+    for weight in ravelry_weights:
+        patterns = Pattern.objects.filter(yarn_weight__icontains=weight)
+        matching_patterns = matching_patterns | patterns
+    
+    return matching_patterns.distinct().order_by('-rating')
