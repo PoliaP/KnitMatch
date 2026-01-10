@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -6,16 +7,15 @@
     <title>Избранное - KnitMatch</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/my_yarn.css">
-    <link rel="stylesheet" href="/static/css/favorites.css">
-
+    <link rel="stylesheet" href="{% static 'css/my_yarn.css' %}"> 
+    <link rel="stylesheet" href="{% static 'css/favorites.css' %}">
 </head>
 <body>
     <!-- Навигация -->
     <nav class="navbar navbar-expand-lg">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="{% url 'home' %}">
-                <img src="/static/images/logo.jpg" alt="Logo" height="45" class="rounded-circle me-2">
+                <img src="{% static 'images/logo.jpg' %}" alt="Logo" height="45" class="rounded-circle me-2">
                 <div class="d-flex flex-column">
                     <div>
                         <span class="fw-bold" style="color: #8a4fff; font-size: 1.4rem;">Knit</span>
@@ -195,7 +195,7 @@
             <div class="row align-items-center">
                 <div class="col-md-4">
                     <div class="footer-brand">
-                        <img src="/static/images/logo.jpg" alt="KnitMatch" height="40" class="rounded-circle me-2">
+                        <img src="{% static 'images/logo.jpg' %}" alt="KnitMatch" height="40" class="rounded-circle me-2">
                         <span class="fw-bold" style="color: #8a4fff; font-size: 1.2rem;">Knit</span>
                         <span class="fw-bold" style="color: #00d4aa; font-size: 1.2rem;">Match</span>
                     </div>
@@ -277,6 +277,8 @@
         
         // Обновление статистики
         function updateStats() {
+            if (allFavorites.length === 0) return;
+            
             document.getElementById('totalFavorites').textContent = allFavorites.length;
             
             const freeCount = allFavorites.filter(f => f.is_free).length;
@@ -333,14 +335,17 @@
             let html = '<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">';
             
             sortedFavorites.forEach(favorite => {
+                const patternUrl = favorite.pattern_url;
+                const hasValidUrl = patternUrl && patternUrl !== '#' && patternUrl !== '';
+                
                 html += `
                     <div class="col">
                         <div class="pattern-card">
                             <div class="pattern-image-container">
-                                <img src="${favorite.photo_url || '/static/images/pattern-placeholder.jpg'}" 
+                                <img src="${favorite.photo_url || '{% static "images/pattern-placeholder.jpg" %}'}" 
                                      class="pattern-image" 
                                      alt="${favorite.name}"
-                                     onerror="this.src='/static/images/pattern-placeholder.jpg'">
+                                     onerror="this.src='{% static "images/pattern-placeholder.jpg" %}'">
                                 ${favorite.is_free ? 
                                     '<span class="free-badge">БЕСПЛАТНО</span>' : 
                                     '<span class="premium-badge">ПРЕМИУМ</span>'}
@@ -385,11 +390,18 @@
                                 ` : ''}
                                 
                                 <div class="pattern-actions">
-                                    <a href="${favorite.pattern_url || '#'}" 
-                                       target="_blank"
-                                       class="btn btn-view">
-                                        <i class="fas fa-external-link-alt me-1"></i>Открыть
-                                    </a>
+                                    ${hasValidUrl ? `
+                                        <a href="${patternUrl}" 
+                                           target="_blank"
+                                           class="btn btn-view">
+                                            <i class="fas fa-external-link-alt me-1"></i>Открыть
+                                        </a>
+                                    ` : `
+                                        <button class="btn btn-view disabled"
+                                                onclick="showPatternUnavailable('${favorite.name}')">
+                                            <i class="fas fa-external-link-alt me-1"></i>Открыть
+                                        </button>
+                                    `}
                                     <button class="btn btn-favorite active"
                                             onclick="removeFromFavorites('${favorite.id}')">
                                         <i class="fas fa-trash me-1"></i>Удалить
@@ -512,6 +524,11 @@
             }
         }
         
+        // Уведомление о недоступной схеме
+        function showPatternUnavailable(patternName) {
+            showNotification(`Ссылка на схему "${patternName}" временно недоступна`, 'warning');
+        }
+        
         // Пустое состояние
         function showEmptyState() {
             const container = document.getElementById('favoritesList');
@@ -596,7 +613,7 @@
             `;
             notification.innerHTML = `
                 ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
             `;
             
             document.body.appendChild(notification);
@@ -608,7 +625,7 @@
             }, 3000);
         }
         
-        // Генерация демо-данных
+        // Генерация демо-данных с валидными URL
         function generateDemoFavorites(count) {
             const difficulties = ['beginner', 'easy', 'intermediate', 'experienced'];
             const yarnWeights = ['Тонкая', 'Спортивная', 'Средняя', 'Камвольная', 'Толстая'];
@@ -627,6 +644,10 @@
                 
                 const addedDate = new Date();
                 addedDate.setDate(addedDate.getDate() - Math.floor(Math.random() * 30));
+
+                const patternUrl = isFree 
+                    ? `/patterns/free/pattern-${i}` 
+                    : `/patterns/premium/pattern-${i}`;
                 
                 favorites.push({
                     id: `fav_${i}`,
@@ -638,7 +659,7 @@
                     is_free: isFree,
                     rating: rating,
                     photo_url: `https://picsum.photos/400/300?random=${i}&blur=2`,
-                    pattern_url: '#',
+                    pattern_url: patternUrl,
                     added_at: addedDate.toISOString()
                 });
             }
