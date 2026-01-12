@@ -53,6 +53,7 @@ class Pattern(models.Model):
     rating = models.FloatField(default=0, verbose_name="Рейтинг")  # Это поле важно!
     rating_count = models.IntegerField(default=0, verbose_name="Количество оценок")
     created_at = models.DateTimeField(auto_now_add=True)
+    description = models.TextField(blank=True, null=True, verbose_name="Описание")
     
     class Meta:
         ordering = ['-rating']
@@ -120,8 +121,11 @@ class ProjectYarn(models.Model):
 
 class Favorite(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    pattern = models.ForeignKey(Pattern, on_delete=models.CASCADE)
+    pattern = models.ForeignKey('Pattern', on_delete=models.CASCADE)
     added_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         unique_together = ['user', 'pattern']
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.pattern.name}"

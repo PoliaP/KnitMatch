@@ -1,5 +1,5 @@
-<!DOCTYPE html>
 {% load static %}
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -7,10 +7,14 @@
     <title>Избранное - KnitMatch</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'css/my_yarn.css' %}"> 
     <link rel="stylesheet" href="{% static 'css/favorites.css' %}">
+    <link rel="stylesheet" href="{% static 'css/my_yarn.css' %}">
 </head>
 <body>
+    <!-- CSRF токен для AJAX -->
+    {% csrf_token %}
+    <input type="hidden" id="csrfToken" value="{{ csrf_token }}">
+    
     <!-- Навигация -->
     <nav class="navbar navbar-expand-lg">
         <div class="container">
@@ -75,7 +79,7 @@
                 <h1 class="hero-title">Мои избранные схемы</h1>
                 <p class="hero-subtitle">Все схемы, которые вы сохранили для будущих проектов</p>
                 <div class="hero-buttons">
-                    <a href="{% url 'pattern_search' %}" class="btn btn-primary btn-lg">
+                    <a href="{% url 'projects' %}" class="btn btn-primary btn-lg">
                         <i class="fas fa-search me-2"></i>Найти ещё схемы
                     </a>
                 </div>
@@ -86,29 +90,10 @@
     <!-- Основной контент -->
     <main class="main-content">
         <div class="container">
-            <!-- Баннер статистики -->
-            <div class="stats-banner" id="statsBanner">
-                <div class="stat">
-                    <div class="stat-number" id="totalFavorites">0</div>
-                    <div class="stat-label">Всего схем</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-number" id="freeFavorites">0</div>
-                    <div class="stat-label">Бесплатных</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-number" id="recentFavorites">0</div>
-                    <div class="stat-label">Добавлено за месяц</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-number" id="avgRating">0</div>
-                    <div class="stat-label">Средний рейтинг</div>
-                </div>
-            </div>
-
             <!-- Заголовок и сортировка -->
-            <div class="favorites-header">
+            <div class="favorites-header mb-4">
                 <h3 class="section-title">Избранные схемы</h3>
+                {% if patterns %}
                 <div class="sort-options">
                     <span class="text-muted me-2">Сортировка:</span>
                     <button class="sort-btn active" onclick="sortFavorites('recent')">
@@ -121,70 +106,114 @@
                         <i class="fas fa-signal me-1"></i>По сложности
                     </button>
                 </div>
-            </div>
-
-            <!-- Фильтры -->
-            <div class="filters-container">
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label fw-semibold">Сложность</label>
-                        <select class="form-select" id="difficultyFilter" onchange="filterFavorites()">
-                            <option value="">Все уровни</option>
-                            <option value="beginner">Начинающий</option>
-                            <option value="easy">Легкий</option>
-                            <option value="intermediate">Средний</option>
-                            <option value="experienced">Опытный</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label fw-semibold">Тип пряжи</label>
-                        <select class="form-select" id="yarnFilter" onchange="filterFavorites()">
-                            <option value="">Все типы</option>
-                            <option value="fingering">Тонкая</option>
-                            <option value="sport">Спортивная</option>
-                            <option value="dk">Средняя</option>
-                            <option value="worsted">Камвольная</option>
-                            <option value="bulky">Толстая</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label fw-semibold">Категория</label>
-                        <select class="form-select" id="categoryFilter" onchange="filterFavorites()">
-                            <option value="">Все категории</option>
-                            <option value="sweater">Свитера</option>
-                            <option value="socks">Носки</option>
-                            <option value="hat">Шапки</option>
-                            <option value="scarf">Шарфы</option>
-                            <option value="blanket">Пледы</option>
-                            <option value="toy">Игрушки</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label fw-semibold">Тип</label>
-                        <select class="form-select" id="typeFilter" onchange="filterFavorites()">
-                            <option value="">Все</option>
-                            <option value="free">Только бесплатные</option>
-                            <option value="premium">Только платные</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="active-filters mt-2" id="activeFilters">
-                    <!-- Активные фильтры будут здесь -->
-                </div>
+                {% endif %}
             </div>
 
             <!-- Список избранного -->
             <div id="favoritesList">
-                <div class="empty-favorites">
-                    <div class="empty-icon">
-                        <i class="fas fa-heart"></i>
+                {% if patterns %}
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                        {% for pattern in patterns %}
+                        <div class="col" data-pattern-id="{{ pattern.id }}">
+                            <div class="pattern-card">
+                                <div class="pattern-image-container">
+                                    {% if pattern.photo_url %}
+                                    <img src="{{ pattern.photo_url }}" 
+                                         class="pattern-image" 
+                                         alt="{{ pattern.name }}"
+                                         onerror="this.src='{% static 'images/pattern-placeholder.jpg' %}'">
+                                    {% else %}
+                                    <img src="{% static 'images/pattern-placeholder.jpg' %}" 
+                                         class="pattern-image" 
+                                         alt="{{ pattern.name }}">
+                                    {% endif %}
+                                    
+                                    {% if pattern.is_free %}
+                                        <span class="free-badge">БЕСПЛАТНО</span>
+                                    {% else %}
+                                        <span class="premium-badge">ПРЕМИУМ</span>
+                                    {% endif %}
+                                    
+                                    <button class="favorite-btn active" 
+                                            onclick="removeFromFavorites({{ pattern.id }}, this)"
+                                            title="Удалить из избранного">
+                                        <i class="fas fa-heart"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="pattern-info">
+                                    <h5 class="pattern-title">{{ pattern.name }}</h5>
+                                    
+                                    {% if pattern.author %}
+                                    <p class="pattern-author">
+                                        <i class="fas fa-user me-1"></i>{{ pattern.author }}
+                                    </p>
+                                    {% endif %}
+                                    
+                                    <div class="pattern-meta">
+                                        <span class="meta-item">
+                                            <i class="fas fa-signal"></i>
+                                            {{ pattern.get_difficulty_display }}
+                                        </span>
+                                        
+                                        <span class="meta-item">
+                                            <i class="fas fa-yarn"></i>
+                                            {{ pattern.yarn_weight|default:"Не указано" }}
+                                        </span>
+                                    </div>
+                                    
+                                    {% if pattern.rating %}
+                                    <div class="pattern-rating">
+                                        <div class="rating-stars">
+                                            {% for i in "12345"|make_list %}
+                                                {% if forloop.counter <= pattern.rating %}
+                                                    <i class="fas fa-star"></i>
+                                                {% elif forloop.counter <= pattern.rating|add:0.5 %}
+                                                    <i class="fas fa-star-half-alt"></i>
+                                                {% else %}
+                                                    <i class="far fa-star"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        <span class="rating-count">{{ pattern.rating|floatformat:1 }}</span>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="pattern-actions">
+                                        {% if pattern.pattern_url and pattern.pattern_url != "#" %}
+                                        <a href="{{ pattern.pattern_url }}" 
+                                           target="_blank"
+                                           class="btn btn-view">
+                                            <i class="fas fa-external-link-alt me-1"></i>Открыть
+                                        </a>
+                                        {% else %}
+                                        <button class="btn btn-view disabled">
+                                            <i class="fas fa-external-link-alt me-1"></i>Недоступно
+                                        </button>
+                                        {% endif %}
+                                        
+                                        <button class="btn btn-favorite active"
+                                                onclick="removeFromFavorites({{ pattern.id }}, this)">
+                                            <i class="fas fa-trash me-1"></i>Удалить
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
-                    <h3 class="mb-3">У вас пока нет избранных схем</h3>
-                    <p class="text-muted mb-4">Находите интересные схемы и добавляйте их в избранное, чтобы не потерять</p>
-                    <a href="{% url 'pattern_search' %}" class="btn btn-primary btn-lg">
-                        <i class="fas fa-search me-2"></i>Найти схемы
-                    </a>
-                </div>
+                {% else %}
+                    <div class="empty-favorites">
+                        <div class="empty-icon">
+                            <i class="fas fa-heart"></i>
+                        </div>
+                        <h3 class="mb-3">У вас пока нет избранных схем</h3>
+                        <p class="text-muted mb-4">Находите интересные схемы и добавляйте их в избранное, чтобы не потерять</p>
+                        <a href="{% url 'projects' %}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-search me-2"></i>Найти схемы
+                        </a>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </main>
@@ -210,398 +239,84 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
+    <!-- Простой JavaScript -->
     <script>
-        // Данные
-        let allFavorites = [];
-        let filteredFavorites = [];
-        let currentSort = 'recent';
-        
-        // Загрузка избранного
-        async function loadFavorites() {
-            try {
-                const response = await fetch('/api/favorites/list/');
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    if (data.success && data.favorites.length > 0) {
-                        // Загружаем детали схем
-                        await loadFavoriteDetails(data.favorites);
-                    } else {
-                        showEmptyState();
-                    }
-                } else {
-                    throw new Error('Ошибка загрузки избранного');
-                }
-            } catch (error) {
-                console.error('Ошибка:', error);
-                // Пробуем загрузить из localStorage
-                const savedFavorites = localStorage.getItem('knitmatch_favorites_details');
-                if (savedFavorites) {
-                    allFavorites = JSON.parse(savedFavorites);
-                    updateDisplay();
-                } else {
-                    showEmptyState();
-                }
-            }
-        }
-        
-        // Загрузка деталей схем
-        async function loadFavoriteDetails(favoriteIds) {
-            try {
-                // Здесь должен быть запрос к API для получения деталей схем
-                // Для демонстрации используем mock данные
-                
-                // Имитируем загрузку
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Генерируем демо-данные
-                allFavorites = generateDemoFavorites(favoriteIds.length || 8);
-                filteredFavorites = [...allFavorites];
-                
-                // Сохраняем в localStorage
-                localStorage.setItem('knitmatch_favorites_details', JSON.stringify(allFavorites));
-                
-                updateDisplay();
-                
-            } catch (error) {
-                console.error('Ошибка загрузки деталей:', error);
-                showEmptyState();
-            }
-        }
-        
-        // Обновление отображения
-        function updateDisplay() {
-            updateStats();
-            renderFavorites();
-        }
-        
-        // Обновление статистики
-        function updateStats() {
-            if (allFavorites.length === 0) return;
-            
-            document.getElementById('totalFavorites').textContent = allFavorites.length;
-            
-            const freeCount = allFavorites.filter(f => f.is_free).length;
-            document.getElementById('freeFavorites').textContent = freeCount;
-            
-            // Считаем добавленные за последний месяц
-            const monthAgo = new Date();
-            monthAgo.setMonth(monthAgo.getMonth() - 1);
-            const recentCount = allFavorites.filter(f => {
-                const addedDate = new Date(f.added_at);
-                return addedDate > monthAgo;
-            }).length;
-            document.getElementById('recentFavorites').textContent = recentCount;
-            
-            // Средний рейтинг
-            const avgRating = allFavorites.reduce((sum, f) => sum + (f.rating || 0), 0) / allFavorites.length;
-            document.getElementById('avgRating').textContent = avgRating.toFixed(1);
-            
-            // Показываем баннер статистики
-            document.getElementById('statsBanner').style.display = 'flex';
-        }
-        
-        // Рендеринг избранного
-        function renderFavorites() {
-            const container = document.getElementById('favoritesList');
-            
-            if (filteredFavorites.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-favorites">
-                        <div class="empty-icon">
-                            <i class="fas fa-search"></i>
-                        </div>
-                        <h3 class="mb-3">Схемы не найдены</h3>
-                        <p class="text-muted mb-4">Попробуйте изменить фильтры поиска</p>
-                        <button class="btn btn-primary btn-lg" onclick="resetFilters()">
-                            <i class="fas fa-redo me-2"></i>Сбросить фильтры
-                        </button>
-                    </div>
-                `;
+        // Удаление из избранного
+        async function removeFromFavorites(patternId, button) {
+            if (!confirm('Удалить эту схему из избранного?')) {
                 return;
             }
             
-            // Сортируем
-            let sortedFavorites = [...filteredFavorites];
-            if (currentSort === 'rating') {
-                sortedFavorites.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-            } else if (currentSort === 'difficulty') {
-                const difficultyOrder = { 'beginner': 1, 'easy': 2, 'intermediate': 3, 'experienced': 4 };
-                sortedFavorites.sort((a, b) => difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty]);
-            } else { // recent
-                sortedFavorites.sort((a, b) => new Date(b.added_at) - new Date(a.added_at));
-            }
+            const csrfToken = document.getElementById('csrfToken').value;
             
-            let html = '<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">';
-            
-            sortedFavorites.forEach(favorite => {
-                const patternUrl = favorite.pattern_url;
-                const hasValidUrl = patternUrl && patternUrl !== '#' && patternUrl !== '';
+            try {
+                const response = await fetch(`/patterns/favorite/${patternId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
                 
-                html += `
-                    <div class="col">
-                        <div class="pattern-card">
-                            <div class="pattern-image-container">
-                                <img src="${favorite.photo_url || '{% static "images/pattern-placeholder.jpg" %}'}" 
-                                     class="pattern-image" 
-                                     alt="${favorite.name}"
-                                     onerror="this.src='{% static "images/pattern-placeholder.jpg" %}'">
-                                ${favorite.is_free ? 
-                                    '<span class="free-badge">БЕСПЛАТНО</span>' : 
-                                    '<span class="premium-badge">ПРЕМИУМ</span>'}
-                                <button class="favorite-btn active" 
-                                        onclick="removeFromFavorites('${favorite.id}')"
-                                        title="Удалить из избранного">
-                                    <i class="fas fa-heart"></i>
-                                </button>
-                            </div>
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // Находим и удаляем карточку
+                    const card = button.closest('.col');
+                    if (card) {
+                        card.style.opacity = '0';
+                        card.style.transform = 'scale(0.9)';
+                        card.style.transition = 'all 0.3s ease';
+                        
+                        setTimeout(() => {
+                            card.remove();
                             
-                            <div class="pattern-info">
-                                <h5 class="pattern-title">${favorite.name}</h5>
-                                
-                                <p class="pattern-author">
-                                    <i class="fas fa-user me-1"></i>${favorite.author}
-                                </p>
-                                
-                                <div class="pattern-meta">
-                                    <span class="meta-item">
-                                        <i class="fas fa-signal"></i>
-                                        ${getDifficultyLabel(favorite.difficulty)}
-                                    </span>
-                                    
-                                    <span class="meta-item">
-                                        <i class="fas fa-yarn"></i>
-                                        ${favorite.yarn_weight}
-                                    </span>
-                                    
-                                    <span class="meta-item">
-                                        <i class="fas fa-calendar me-1"></i>
-                                        ${formatDate(favorite.added_at)}
-                                    </span>
-                                </div>
-                                
-                                ${favorite.rating ? `
-                                    <div class="pattern-rating">
-                                        <div class="rating-stars">
-                                            ${getStarsHTML(favorite.rating)}
+                            // Проверяем, остались ли ещё схемы
+                            const remainingCards = document.querySelectorAll('.pattern-card');
+                            if (remainingCards.length === 0) {
+                                document.getElementById('favoritesList').innerHTML = `
+                                    <div class="empty-favorites">
+                                        <div class="empty-icon">
+                                            <i class="fas fa-heart"></i>
                                         </div>
-                                        <span class="rating-count">${favorite.rating.toFixed(1)}</span>
-                                    </div>
-                                ` : ''}
-                                
-                                <div class="pattern-actions">
-                                    ${hasValidUrl ? `
-                                        <a href="${patternUrl}" 
-                                           target="_blank"
-                                           class="btn btn-view">
-                                            <i class="fas fa-external-link-alt me-1"></i>Открыть
+                                        <h3 class="mb-3">У вас пока нет избранных схем</h3>
+                                        <p class="text-muted mb-4">Находите интересные схемы и добавляйте их в избранное, чтобы не потерять</p>
+                                        <a href="{% url 'projects' %}" class="btn btn-primary btn-lg">
+                                            <i class="fas fa-search me-2"></i>Найти схемы
                                         </a>
-                                    ` : `
-                                        <button class="btn btn-view disabled"
-                                                onclick="showPatternUnavailable('${favorite.name}')">
-                                            <i class="fas fa-external-link-alt me-1"></i>Открыть
-                                        </button>
-                                    `}
-                                    <button class="btn btn-favorite active"
-                                            onclick="removeFromFavorites('${favorite.id}')">
-                                        <i class="fas fa-trash me-1"></i>Удалить
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-            container.innerHTML = html;
+                                    </div>
+                                `;
+                            }
+                        }, 300);
+                    }
+                    
+                    // Показываем уведомление
+                    showNotification(data.message, 'success');
+                } else {
+                    showNotification('Ошибка: ' + data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showNotification('Ошибка соединения с сервером', 'error');
+            }
         }
         
-        // Сортировка
+        // Сортировка (упрощенная, без перезагрузки страницы)
         function sortFavorites(sortType) {
-            // Обновляем активные кнопки
+            // Просто меняем активную кнопку
             document.querySelectorAll('.sort-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
             event.target.classList.add('active');
             
-            currentSort = sortType;
-            renderFavorites();
+            // В реальном приложении здесь был бы AJAX запрос
+            console.log(`Сортировка по: ${sortType}`);
         }
         
-        // Фильтрация
-        function filterFavorites() {
-            const difficulty = document.getElementById('difficultyFilter').value;
-            const yarnWeight = document.getElementById('yarnFilter').value;
-            const category = document.getElementById('categoryFilter').value;
-            const typeFilter = document.getElementById('typeFilter').value;
-            
-            filteredFavorites = allFavorites.filter(favorite => {
-                if (difficulty && favorite.difficulty !== difficulty) return false;
-                if (yarnWeight && favorite.yarn_weight !== yarnWeight) return false;
-                if (category && favorite.category !== category) return false;
-                if (typeFilter === 'free' && !favorite.is_free) return false;
-                if (typeFilter === 'premium' && favorite.is_free) return false;
-                return true;
-            });
-            
-            renderFavorites();
-            updateActiveFilters();
-        }
-        
-        // Сброс фильтров
-        function resetFilters() {
-            document.getElementById('difficultyFilter').value = '';
-            document.getElementById('yarnFilter').value = '';
-            document.getElementById('categoryFilter').value = '';
-            document.getElementById('typeFilter').value = '';
-            
-            filteredFavorites = [...allFavorites];
-            renderFavorites();
-            document.getElementById('activeFilters').innerHTML = '';
-        }
-        
-        // Обновление активных фильтров
-        function updateActiveFilters() {
-            const activeFiltersDiv = document.getElementById('activeFilters');
-            let filtersHTML = '';
-            
-            const difficulty = document.getElementById('difficultyFilter').value;
-            const yarnWeight = document.getElementById('yarnFilter').value;
-            const category = document.getElementById('categoryFilter').value;
-            const typeFilter = document.getElementById('typeFilter').value;
-            
-            if (difficulty) {
-                filtersHTML += `<span class="filter-tag">${getDifficultyLabel(difficulty)}</span>`;
-            }
-            
-            if (yarnWeight) {
-                filtersHTML += `<span class="filter-tag">${yarnWeight}</span>`;
-            }
-            
-            if (category) {
-                filtersHTML += `<span class="filter-tag">${category}</span>`;
-            }
-            
-            if (typeFilter) {
-                filtersHTML += `<span class="filter-tag">${typeFilter === 'free' ? 'Бесплатные' : 'Платные'}</span>`;
-            }
-            
-            activeFiltersDiv.innerHTML = filtersHTML;
-        }
-        
-        // Удаление из избранного
-        async function removeFromFavorites(patternId) {
-            if (confirm('Удалить эту схему из избранного?')) {
-                try {
-                    const response = await fetch('/api/favorites/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': getCSRFToken()
-                        },
-                        body: JSON.stringify({
-                            pattern_id: patternId,
-                            action: 'remove'
-                        })
-                    });
-                    
-                    if (response.ok) {
-                        // Удаляем из локального массива
-                        allFavorites = allFavorites.filter(f => f.id !== patternId);
-                        filteredFavorites = filteredFavorites.filter(f => f.id !== patternId);
-                        
-                        // Обновляем отображение
-                        updateDisplay();
-                        
-                        // Показываем уведомление
-                        showNotification('Схема удалена из избранного', 'success');
-                    }
-                } catch (error) {
-                    console.error('Ошибка удаления:', error);
-                    showNotification('Ошибка при удалении', 'error');
-                }
-            }
-        }
-        
-        // Уведомление о недоступной схеме
-        function showPatternUnavailable(patternName) {
-            showNotification(`Ссылка на схему "${patternName}" временно недоступна`, 'warning');
-        }
-        
-        // Пустое состояние
-        function showEmptyState() {
-            const container = document.getElementById('favoritesList');
-            container.innerHTML = `
-                <div class="empty-favorites">
-                    <div class="empty-icon">
-                        <i class="fas fa-heart"></i>
-                    </div>
-                    <h3 class="mb-3">У вас пока нет избранных схем</h3>
-                    <p class="text-muted mb-4">Находите интересные схемы и добавляйте их в избранное, чтобы не потерять</p>
-                    <a href="{% url 'pattern_search' %}" class="btn btn-primary btn-lg">
-                        <i class="fas fa-search me-2"></i>Найти схемы
-                    </a>
-                </div>
-            `;
-            document.getElementById('statsBanner').style.display = 'none';
-        }
-        
-        // Вспомогательные функции
-        function getDifficultyLabel(difficulty) {
-            const labels = {
-                'beginner': 'Начинающий',
-                'easy': 'Легкий',
-                'intermediate': 'Средний',
-                'experienced': 'Опытный'
-            };
-            return labels[difficulty] || difficulty;
-        }
-        
-        function getStarsHTML(rating) {
-            let stars = '';
-            const fullStars = Math.floor(rating);
-            const halfStar = rating % 1 >= 0.5;
-            
-            for (let i = 1; i <= 5; i++) {
-                if (i <= fullStars) {
-                    stars += '<i class="fas fa-star"></i>';
-                } else if (i === fullStars + 1 && halfStar) {
-                    stars += '<i class="fas fa-star-half-alt"></i>';
-                } else {
-                    stars += '<i class="far fa-star"></i>';
-                }
-            }
-            
-            return stars;
-        }
-        
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('ru-RU', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            });
-        }
-        
-        function getCSRFToken() {
-            const name = 'csrftoken';
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
-        
+        // Показ уведомлений
         function showNotification(message, type = 'info') {
+            // Создаем уведомление
             const notification = document.createElement('div');
             notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
             notification.style.cssText = `
@@ -612,65 +327,24 @@
                 box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             `;
             notification.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-sm" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
             `;
             
             document.body.appendChild(notification);
             
+            // Автоматическое удаление через 5 секунд
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.remove();
                 }
-            }, 3000);
+            }, 5000);
         }
-        
-        // Генерация демо-данных с валидными URL
-        function generateDemoFavorites(count) {
-            const difficulties = ['beginner', 'easy', 'intermediate', 'experienced'];
-            const yarnWeights = ['Тонкая', 'Спортивная', 'Средняя', 'Камвольная', 'Толстая'];
-            const categories = ['Свитер', 'Носки', 'Шапка', 'Шарф', 'Плед', 'Игрушка'];
-            const authors = ['Анна Иванова', 'Мария Смирнова', 'Елена Петрова'];
-            
-            const favorites = [];
-            
-            for (let i = 1; i <= count; i++) {
-                const difficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
-                const yarnWeight = yarnWeights[Math.floor(Math.random() * yarnWeights.length)];
-                const category = categories[Math.floor(Math.random() * categories.length)];
-                const author = authors[Math.floor(Math.random() * authors.length)];
-                const isFree = Math.random() > 0.5;
-                const rating = parseFloat((Math.random() * 2 + 3).toFixed(1));
-                
-                const addedDate = new Date();
-                addedDate.setDate(addedDate.getDate() - Math.floor(Math.random() * 30));
-
-                const patternUrl = isFree 
-                    ? `/patterns/free/pattern-${i}` 
-                    : `/patterns/premium/pattern-${i}`;
-                
-                favorites.push({
-                    id: `fav_${i}`,
-                    name: `${category} "Любимый"`,
-                    author: author,
-                    difficulty: difficulty,
-                    yarn_weight: yarnWeight,
-                    category: category.toLowerCase(),
-                    is_free: isFree,
-                    rating: rating,
-                    photo_url: `https://picsum.photos/400/300?random=${i}&blur=2`,
-                    pattern_url: patternUrl,
-                    added_at: addedDate.toISOString()
-                });
-            }
-            
-            return favorites;
-        }
-        
-        // Загрузка при старте
-        document.addEventListener('DOMContentLoaded', function() {
-            loadFavorites();
-        });
     </script>
 </body>
 </html>

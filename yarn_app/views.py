@@ -1,13 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate, logout as auth_logout
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from django.db.models import Q, Count, Sum
+from django.db.models import Q
 from .models import UserYarn, Pattern, Project, ProjectYarn, Favorite
 from .ravelry_api import RavelryAPI, get_yarn_type_mapping
-
-# Загрузка схем при первом запуске
 
 def home(request):
     """Главная страница"""
@@ -26,17 +24,6 @@ def signup(request):
     
     return render(request, 'signup.html', {'form': form})
 
-def user_login(request):
-    """Кастомный логин (если нужно)"""
-    if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
-            return redirect('home')
-    
-    return render(request, 'login.html')
 
 @login_required
 def logout_view(request):
@@ -208,8 +195,38 @@ def use_in_project(request, yarn_id):
 
 @login_required
 def projects(request):
-    """Страница проектов с выгрузкой из API"""
+    """Страница проектов и схем"""
     user_projects = Project.objects.filter(user=request.user).order_by('-created_at')
+    
+    # ПОЛУЧАЕМ СХЕМЫ ИЗ БАЗЫ (вместо "свежих схем из API")
+    all_patterns = Pattern.objects.all().order_by('-created_at')
+    
+    # Фильтрация схем
+    difficulty_filter = request.GET.get('difficulty', '')
+    yarn_weight_filter = request.GET.get('yarn_weight', '')
+    search_query = request.GET.get('search', '')
+    
+    patterns = all_patterns
+    
+    if difficulty_filter:
+        patterns = patterns.filter(difficulty=difficulty_filter)
+    
+    if yarn_weight_filter:
+        patterns = patterns.filter(yarn_weight__icontains=yarn_weight_filter)
+    
+    if search_query:
+        patterns = patterns.filter(name__icontains=search_query)
+    
+    # Ограничиваем количество если нужно
+    patterns = patterns[:50]
+    
+    # Получаем избранные схемы
+    favorite_pattern_ids = []
+    if request.user.is_authenticated:
+        favorite_pattern_ids = Favorite.objects.filter(
+            user=request.user,
+            pattern__in=patterns
+        ).values_list('pattern_id', flat=True)
     
     # Статистика проектов
     projects_stats = {
@@ -219,13 +236,9 @@ def projects(request):
         'completed': user_projects.filter(status='completed').count(),
     }
     
-    # Получаем свежие схемы из API
-    recent_patterns = Pattern.objects.order_by('-created_at')[:10]
-    
     # Анализ пряжи пользователя
     user_yarns = UserYarn.objects.filter(user=request.user)
     
-    # Считаем статистику вручную
     yarn_analysis = {
         'by_type': {},
         'total_yarns': user_yarns.count(),
@@ -239,18 +252,12 @@ def projects(request):
     types_set = set()
     
     for yarn in user_yarns:
-        # Считаем общий вес
         yarn_weight = yarn.total_weight
         yarn_analysis['total_weight'] += yarn_weight
-        
-        # Считаем общее количество мотков
         yarn_analysis['total_motki'] += yarn.amount
-        
-        # Собираем уникальные цвета
         colors_set.add(yarn.color)
         types_set.add(yarn.yarn_type)
         
-        # Группируем по типу пряжи
         type_display = yarn.get_yarn_type_display()
         if type_display not in yarn_analysis['by_type']:
             yarn_analysis['by_type'][type_display] = {
@@ -264,11 +271,27 @@ def projects(request):
     yarn_analysis['colors_count'] = len(colors_set)
     yarn_analysis['types_count'] = len(types_set)
     
+    # Собираем уникальные веса пряжи для фильтра
+    yarn_weights = Pattern.objects.values_list('yarn_weight', flat=True).distinct()
+    
     context = {
         'projects': user_projects,
-        'recent_patterns': recent_patterns,
+        'patterns': patterns,  # Теперь передаем отфильтрованные схемы
+        'favorite_pattern_ids': list(favorite_pattern_ids),
         'stats': projects_stats,
         'yarn_analysis': yarn_analysis,
+        'difficulty_filter': difficulty_filter,
+        'yarn_weight_filter': yarn_weight_filter,
+        'search_query': search_query,
+        'yarn_weights': sorted(set(yarn_weights)),
+        'difficulty_choices': [
+            ('', 'Любая сложность'),
+            ('beginner', 'Начинающий'),
+            ('easy', 'Легкий'),
+            ('intermediate', 'Средний'),
+            ('experienced', 'Опытный'),
+        ],
+        'total_patterns': patterns.count(),
     }
     
     return render(request, 'projects.html', context)
@@ -402,17 +425,17 @@ def pattern_search(request):
     
     # Ограничиваем количество
     suitable_patterns = suitable_patterns.order_by('-rating')[:50]
-    
-    # Получаем избранные схемы пользователя
+
     favorite_pattern_ids = Favorite.objects.filter(
         user=request.user,
         pattern__in=suitable_patterns
     ).values_list('pattern_id', flat=True)
-    
+
     context = {
         'patterns': suitable_patterns,
+        'favorite_ids': favorite_ids,
         'user_yarns': user_yarns,
-        'favorite_pattern_ids': list(favorite_pattern_ids),
+        'favorite_pattern_ids': list(favorite_pattern_ids), 
         'difficulty_filter': difficulty_filter,
         'search_query': search_query,
         'free_only': free_only,
@@ -425,41 +448,62 @@ def pattern_search(request):
         ]
     }
     
-    return render(request, 'pattern_search.html', context)
+    return render(request, 'projects.html', context)
 
 @login_required
 def toggle_favorite(request, pattern_id):
     """Добавление/удаление схемы из избранного"""
     pattern = get_object_or_404(Pattern, id=pattern_id)
     
-    favorite, created = Favorite.objects.get_or_create(
-        user=request.user,
-        pattern=pattern
-    )
-    
-    if not created:
-        favorite.delete()
-        message = "Схема удалена из избранного"
-        is_favorite = False
-    else:
-        message = "Схема добавлена в избранное"
-        is_favorite = True
-    
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({
-            'status': 'success', 
-            'message': message,
-            'is_favorite': is_favorite
-        })
-    
-    return redirect(request.META.get('HTTP_REFERER', 'pattern_search'))
+    try:
+        favorite, created = Favorite.objects.get_or_create(
+            user=request.user,
+            pattern=pattern
+        )
+        
+        if not created:
+            # Удаляем из избранного
+            favorite.delete()
+            message = "Схема удалена из избранного"
+            is_favorite = False
+        else:
+            # Добавляем в избранное
+            message = "Схема добавлена в избранное"
+            is_favorite = True
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'status': 'success', 
+                'message': message,
+                'is_favorite': is_favorite
+            })
+        else:
+            return redirect('pattern_search')
+            
+    except Exception as e:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'status': 'error', 
+                'message': str(e)
+            })
+        else:
+            return redirect('pattern_search')
 
 @login_required
 def favorites(request):
     """Страница избранных схем"""
+    print(f"[DEBUG] Пользователь: {request.user.username}")
+    
+    # Получаем избранные схемы пользователя
     favorite_patterns = Pattern.objects.filter(
         favorite__user=request.user
-    ).distinct().order_by('-favorite__added_at')
+    ).distinct()
+    
+    print(f"[DEBUG] Найдено схем: {favorite_patterns.count()}")
+    
+    # Выводим в консоль что нашли
+    for pattern in favorite_patterns:
+        print(f"[DEBUG] - {pattern.name} (ID: {pattern.id})")
     
     context = {
         'patterns': favorite_patterns,

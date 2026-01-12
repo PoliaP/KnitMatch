@@ -14,37 +14,10 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.contrib import admin
 from django.urls import path, include
-from django.contrib.auth import views as auth_views
-from yarn_app import views as yarn_views
 
 urlpatterns = [
-    # Главная страница
-    path('', yarn_views.home, name='home'),
-    
-    # Аутентификация
-    path('login/', auth_views.LoginView.as_view(
-        template_name='login.html',
-        redirect_authenticated_user=True
-    ), name='login'),
-    
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-    
-    path('signup/', yarn_views.signup, name='signup'),
-    
-    # Приложение yarn_app (только для операций с пряжей)
-    path('yarn/', include('yarn_app.urls')),
-    
-    # Проекты (отдельно, чтобы избежать конфликтов)
-    path('projects/', yarn_views.projects, name='projects'),
-    path('projects/add/', yarn_views.add_project, name='add_project'),
-    path('projects/<int:project_id>/', yarn_views.project_detail, name='project_detail'),
-    path('projects/delete/<int:project_id>/', yarn_views.delete_project, name='delete_project'),
-    
-    # Схемы и поиск
-    path('patterns/', yarn_views.pattern_search, name='pattern_search'),
-    path('patterns/favorites/', yarn_views.favorites, name='favorites'),
-    path('patterns/favorite/<int:pattern_id>/', yarn_views.toggle_favorite, name='toggle_favorite'),
-    path('patterns/load-more/', yarn_views.load_more_patterns, name='load_more_patterns'),
-    path('patterns/refresh/', yarn_views.refresh_patterns, name='refresh_patterns'),
+    path('admin/', admin.site.urls),
+    path('', include('yarn_app.urls')),  # ВСЕ маршруты в одном файле
 ]

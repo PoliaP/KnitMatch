@@ -45,7 +45,7 @@
                             <i class="fas fa-project-diagram me-1"></i>Схемы
                         </button>
                     </a>
-                    <a href="#" class="nav-link me-2">
+                    <a href="{% url 'favorites' %}" class="nav-link me-2">
                         <button class="btn nav-btn">
                             <i class="fas fa-heart me-1"></i>Избранное
                         </button>
@@ -81,36 +81,36 @@
     <main class="main-content py-4">
         <div class="container">
             <!-- Статистика -->
-            <div class="stats-container" id="stats">
-                <div class="stat-card">
-                    <div class="stat-icon stat-icon-1">
-                        <i class="fas fa-cube"></i>
-                    </div>
-                    <div class="stat-number" id="totalPatterns">0</div>
-                    <div class="stat-label">Всего схем</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon stat-icon-2">
-                        <i class="fas fa-gift"></i>
-                    </div>
-                    <div class="stat-number" id="freePatterns">0</div>
-                    <div class="stat-label">Бесплатные</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon stat-icon-3">
-                        <i class="fas fa-star"></i>
-                    </div>
-                    <div class="stat-number" id="favoritesCount">0</div>
-                    <div class="stat-label">В избранном</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon stat-icon-4">
-                        <i class="fas fa-download"></i>
-                    </div>
-                    <div class="stat-number" id="lastUpdate">0</div>
-                    <div class="stat-label">Обновлено</div>
-                </div>
-            </div>
+<div class="stats-container" id="stats">
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-1">
+            <i class="fas fa-cube"></i>
+        </div>
+        <div class="stat-number" id="totalPatterns">0</div>
+        <div class="stat-label">Всего схем</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-2">
+            <i class="fas fa-gift"></i>
+        </div>
+        <div class="stat-number" id="freePatterns">0</div>
+        <div class="stat-label">Бесплатные</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-3">
+            <i class="fas fa-star"></i>
+        </div>
+        <div class="stat-number" id="favoritesCount">0</div>
+        <div class="stat-label">В избранном</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-4">
+            <i class="fas fa-download"></i>
+        </div>
+        <div class="stat-number" id="lastUpdate">0</div>
+        <div class="stat-label">Обновлено</div>
+    </div>
+</div>
 
             <!-- Поиск и фильтры -->
             <div class="row">
@@ -459,7 +459,7 @@
                     is_free: isFree,
                     rating: rating,
                     rating_count: Math.floor(Math.random() * 100) + 1,
-                    photo_url: `https://picsum.photos/400/300?random=${i}&blur=2`,
+                    photo_url: `https://placehold.co/400x300/cccccc/969696/png?text=Схема+${i}`,
                     pattern_url: `#`
                 });
             }
@@ -489,39 +489,28 @@
         // Обновление статистики
         function updateStats() {
     try {
-        // Проверяем существование элементов перед обновлением
+        // Проверяем существование элементов
         const totalElement = document.getElementById('totalPatterns');
         const freeElement = document.getElementById('freePatterns');
-        const premiumElement = document.getElementById('premiumPatterns');
-        const avgElement = document.getElementById('avgDifficulty');
+        const favoritesElement = document.getElementById('favoritesCount');
+        const lastUpdateElement = document.getElementById('lastUpdate');
         
-        if (!totalElement || !freeElement || !premiumElement || !avgElement) {
-            console.warn('Некоторые элементы статистики не найдены на странице');
+        if (!totalElement || !freeElement || !favoritesElement || !lastUpdateElement) {
+            console.warn('Некоторые элементы статистики не найдены');
             return;
         }
         
         // Подсчет статистики
         const total = allPatterns.length;
         const free = allPatterns.filter(p => p.is_free).length;
-        const premium = total - free;
+        const favoritesCount = favorites.length;
+        const lastUpdate = localStorage.getItem('knitmatch_last_update') || 'Только что';
         
-        // Средняя сложность
-        const difficultyMap = { 'beginner': 1, 'easy': 2, 'intermediate': 3, 'experienced': 4 };
-        const avgDifficulty = allPatterns.length > 0 
-            ? allPatterns.reduce((sum, p) => sum + (difficultyMap[p.difficulty] || 2), 0) / allPatterns.length
-            : 0;
-        
-        // Обновляем значения ТОЛЬКО если элементы существуют
+        // Обновляем значения
         totalElement.textContent = total;
         freeElement.textContent = free;
-        premiumElement.textContent = premium;
-        avgElement.textContent = avgDifficulty.toFixed(1);
-        
-        // Показываем блок статистики
-        const statsSection = document.querySelector('.stats-section');
-        if (statsSection && total > 0) {
-            statsSection.style.display = 'block';
-        }
+        favoritesElement.textContent = favoritesCount;
+        lastUpdateElement.textContent = lastUpdate;
         
     } catch (error) {
         console.error('Ошибка в updateStats:', error);

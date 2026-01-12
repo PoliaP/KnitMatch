@@ -1,181 +1,254 @@
+import requests
+import base64
+import time
+import json
+from django.conf import settings
 from .models import Pattern
 
 class RavelryAPI:
-    """Класс для работы с Ravelry API (мок версия)"""
+    """Класс для работы с реальным Ravelry API"""
     
-    MOCK_PATTERNS = [
-        {
-            'id': 1,
-            'name': 'Простой шарф для начинающих',
-            'yarn_weight': 'DK',
-            'photo_url': 'https://via.placeholder.com/300x200/8A4FFF/FFFFFF?text=Шарф',
-            'pattern_url': '#',
-            'difficulty_level': 1,
-            'craft': 'knitting',
-            'free': True,
-            'rating': 4.5,
-            'rating_count': 123
-        },
-        {
-            'id': 2,
-            'name': 'Теплые варежки с узором',
-            'yarn_weight': 'Worsted',
-            'photo_url': 'https://via.placeholder.com/300x200/FF6B8B/FFFFFF?text=Варежки',
-            'pattern_url': '#',
-            'difficulty_level': 2,
-            'craft': 'knitting',
-            'free': True,
-            'rating': 4.2,
-            'rating_count': 89
-        },
-        {
-            'id': 3,
-            'name': 'Уютный плед из квадратов',
-            'yarn_weight': 'Bulky',
-            'photo_url': 'https://via.placeholder.com/300x200/00D4AA/FFFFFF?text=Плед',
-            'pattern_url': '#',
-            'difficulty_level': 3,
-            'craft': 'knitting',
-            'free': False,
-            'rating': 4.8,
-            'rating_count': 256
-        },
-        {
-            'id': 4,
-            'name': 'Ажурная шаль',
-            'yarn_weight': 'Fingering',
-            'photo_url': 'https://via.placeholder.com/300x200/4FC3F7/FFFFFF?text=Шаль',
-            'pattern_url': '#',
-            'difficulty_level': 4,
-            'craft': 'knitting',
-            'free': False,
-            'rating': 4.7,
-            'rating_count': 187
-        },
-        {
-            'id': 5,
-            'name': 'Детская шапочка с помпоном',
-            'yarn_weight': 'Sport',
-            'photo_url': 'https://via.placeholder.com/300x200/FFA726/FFFFFF?text=Шапочка',
-            'pattern_url': '#',
-            'difficulty_level': 1,
-            'craft': 'knitting',
-            'free': True,
-            'rating': 4.1,
-            'rating_count': 76
-        },
-        {
-            'id': 6,
-            'name': 'Носки с косой',
-            'yarn_weight': 'Fingering',
-            'photo_url': 'https://via.placeholder.com/300x200/66BB6A/FFFFFF?text=Носки',
-            'pattern_url': '#',
-            'difficulty_level': 3,
-            'craft': 'knitting',
-            'free': True,
-            'rating': 4.6,
-            'rating_count': 234
-        },
-        {
-            'id': 7,
-            'name': 'Теплый свитер с косами',
-            'yarn_weight': 'Worsted',
-            'photo_url': 'https://via.placeholder.com/300x200/795548/FFFFFF?text=Свитер',
-            'pattern_url': '#',
-            'difficulty_level': 4,
-            'craft': 'knitting',
-            'free': False,
-            'rating': 4.9,
-            'rating_count': 312
-        },
-        {
-            'id': 8,
-            'name': 'Плед из шестиугольников',
-            'yarn_weight': 'DK',
-            'photo_url': 'https://via.placeholder.com/300x200/9E9E9E/FFFFFF?text=Плед+2',
-            'pattern_url': '#',
-            'difficulty_level': 3,
-            'craft': 'knitting',
-            'free': False,
-            'rating': 4.3,
-            'rating_count': 145
-        },
-        {
-            'id': 9,
-            'name': 'Митенки с ажуром',
-            'yarn_weight': 'Sport',
-            'photo_url': 'https://via.placeholder.com/300x200/8A4FFF/FFFFFF?text=Митенки',
-            'pattern_url': '#',
-            'difficulty_level': 2,
-            'craft': 'knitting',
-            'free': True,
-            'rating': 4.0,
-            'rating_count': 98
-        },
-        {
-            'id': 10,
-            'name': 'Пуловер с регланом',
-            'yarn_weight': 'Worsted',
-            'photo_url': 'https://via.placeholder.com/300x200/FF6B8B/FFFFFF?text=Пуловер',
-            'pattern_url': '#',
-            'difficulty_level': 4,
-            'craft': 'knitting',
-            'free': False,
-            'rating': 4.8,
-            'rating_count': 278
+    BASE_URL = 'https://api.ravelry.com'
+    
+    def __init__(self, use_personal=True):
+        """
+        Инициализация API
+        
+        Args:
+            use_personal: True - использовать personal доступ, False - read-only
+        """
+        if use_personal:
+            self.username = settings.RAVELRY_USERNAME
+            self.access_token = settings.RAVELRY_PERSONAL_ACCESS_TOKEN
+            self.access_type = "personal"
+        else:
+            self.username = getattr(settings, 'RAVELRY_READONLY_USERNAME', '')
+            self.access_token = getattr(settings, 'RAVELRY_READONLY_TOKEN', '')
+            self.access_type = "read-only"
+        
+        if not self.username or not self.access_token:
+            raise ValueError(f"Не установлены учетные данные для {self.access_type} доступа")
+        
+        # Basic Auth для Ravelry API
+        auth_string = f"{self.username}:{self.access_token}"
+        self.auth_header = f"Basic {base64.b64encode(auth_string.encode()).decode()}"
+        
+        self.headers = {
+            'Authorization': self.auth_header,
+            'Content-Type': 'application/json',
+            'User-Agent': f'KnitMatch/1.0 (PoliaP)'
         }
-    ]
-
-    @staticmethod
-    def get_difficulty_level(level):
-        """Конвертирует уровень сложности"""
-        if level <= 1:
+        
+        print(f"🔑 Использую {self.access_type} доступ")
+        print(f"   Username: {self.username}")
+    
+    def test_connection(self):
+        """Тестирует подключение к API"""
+        print(f"🔌 Тестирую подключение к Ravelry API ({self.access_type})...")
+        
+        # Простой запрос для проверки
+        params = {
+            'page_size': 2,
+            'sort': 'popularity',
+            'craft': 'knitting'
+        }
+        
+        data = self._make_request('patterns/search.json', params)
+        
+        if data and 'patterns' in data:
+            total = data.get('paginator', {}).get('results', 0)
+            patterns = data.get('patterns', [])
+            
+            print(f"✅ Подключение успешно!")
+            print(f"   Доступно схем: {total}")
+            
+            if patterns:
+                print("   Примеры схем:")
+                for i, pattern in enumerate(patterns[:3], 1):
+                    name = pattern.get('name', 'Без названия')[:50]
+                    print(f"   {i}. {name}")
+            
+            return True
+        else:
+            print("❌ Не удалось подключиться к API")
+            return False
+    
+    def _make_request(self, endpoint, params=None):
+        """Делает запрос к Ravelry API с обработкой ошибок"""
+        url = f"{self.BASE_URL}/{endpoint}"
+        
+        try:
+            print(f"🌐 Запрос: {endpoint}")
+            if params:
+                print(f"   Параметры: {json.dumps(params, ensure_ascii=False)[:100]}...")
+            
+            response = requests.get(url, headers=self.headers, params=params, timeout=15)
+            
+            if response.status_code == 200:
+                print(f"   ✅ Успешно")
+                return response.json()
+            elif response.status_code == 401:
+                print(f"❌ Ошибка 401: Неверные учетные данные для {self.access_type}")
+                return None
+            elif response.status_code == 429:
+                print("⚠ Ошибка 429: Лимит запросов. Жду 60 секунд...")
+                time.sleep(60)
+                return self._make_request(endpoint, params)
+            else:
+                print(f"❌ Ошибка {response.status_code}: {response.reason}")
+                print(f"   URL: {url}")
+                if response.text:
+                    print(f"   Ответ: {response.text[:200]}")
+                return None
+                
+        except requests.exceptions.Timeout:
+            print("❌ Таймаут запроса")
+            return None
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Ошибка сети: {e}")
+            return None
+    
+    def fetch_popular_patterns(self, count=20, yarn_weight=None):
+        """Загружает популярные схемы с Ravelry"""
+        print(f"📥 Загружаю {count} популярных схем...")
+        
+        params = {
+            'page_size': min(count, 100),
+            'sort': 'popularity',
+            'craft': 'knitting'
+        }
+        
+        if yarn_weight:
+            params['weight'] = yarn_weight.lower()
+            print(f"   Фильтр по весу пряжи: {yarn_weight}")
+        
+        data = self._make_request('patterns/search.json', params)
+        
+        if not data or 'patterns' not in data:
+            print("❌ Не получили данные от API")
+            return 0, []
+        
+        patterns = data['patterns'][:count]
+        created_count = 0
+        
+        print(f"📊 Обрабатываю {len(patterns)} схем...")
+        
+        for i, pattern_data in enumerate(patterns, 1):
+            pattern_id = str(pattern_data.get('id', ''))
+            
+            if not pattern_id:
+                continue
+            
+            # Проверяем, есть ли уже в базе
+            if Pattern.objects.filter(ravelry_id=pattern_id).exists():
+                print(f"   {i}. Уже в базе: {pattern_data.get('name', '')[:40]}")
+                continue
+            
+            # Извлекаем данные
+            name = pattern_data.get('name', 'Без названия')
+            
+            # Фото
+            first_photo = pattern_data.get('first_photo', {})
+            photo_url = first_photo.get('medium_url', '') if first_photo else ''
+            
+            # Вес пряжи
+            yarn_weight_data = pattern_data.get('yarn_weight', {})
+            yarn_weight_name = yarn_weight_data.get('name', 'Not Specified')
+            
+            # Сложность
+            difficulty_avg = pattern_data.get('difficulty_average', 2.5)
+            difficulty = self._convert_difficulty(difficulty_avg)
+            
+            # Рейтинг
+            rating = pattern_data.get('rating_average', 0)
+            rating_count = pattern_data.get('rating_count', 0)
+            
+            # Бесплатная ли
+            is_free = pattern_data.get('free', False)
+            
+            # URL схемы
+            pattern_url = pattern_data.get('permalink', '#')
+            if pattern_url != '#':
+                pattern_url = f"https://www.ravelry.com/patterns/library/{pattern_url}"
+            
+            # Описание
+            description = pattern_data.get('notes', '')[:500] if pattern_data.get('notes') else ''
+            
+            # Создаем запись в базе
+            try:
+                Pattern.objects.create(
+                    ravelry_id=pattern_id,
+                    name=name,
+                    yarn_weight=yarn_weight_name,
+                    photo_url=photo_url,
+                    pattern_url=pattern_url,
+                    difficulty=difficulty,
+                    source='ravelry',
+                    craft='knitting',
+                    is_free=is_free,
+                    rating=rating,
+                    rating_count=rating_count,
+                    description=description
+                )
+                created_count += 1
+                print(f"   {i}. ✅ Загружена: {name[:40]}")
+                
+            except Exception as e:
+                print(f"   {i}. ❌ Ошибка сохранения: {e}")
+        
+        print(f"📈 Итого загружено новых схем: {created_count}")
+        return created_count, patterns
+    
+    def _convert_difficulty(self, rating):
+        """Конвертирует рейтинг сложности"""
+        if rating <= 1.5:
             return 'beginner'
-        elif level == 2:
+        elif rating <= 2.5:
             return 'easy'
-        elif level == 3:
+        elif rating <= 3.5:
             return 'intermediate'
         else:
             return 'experienced'
-
-    @staticmethod
-    def fetch_popular_patterns(count=20):
-        """Загружает популярные схемы (мок версия)"""
-        try:
-            patterns = RavelryAPI.MOCK_PATTERNS[:count]
-            
-            created_count = 0
-            for pattern_data in patterns:
-                # Проверяем, есть ли уже такая схема
-                if not Pattern.objects.filter(ravelry_id=str(pattern_data['id'])).exists():
-                    Pattern.objects.create(
-                        ravelry_id=str(pattern_data['id']),
-                        name=pattern_data['name'],
-                        yarn_weight=pattern_data['yarn_weight'],
-                        photo_url=pattern_data['photo_url'],
-                        pattern_url=pattern_data['pattern_url'],
-                        difficulty=RavelryAPI.get_difficulty_level(pattern_data['difficulty_level']),
-                        source='ravelry',
-                        craft=pattern_data.get('craft', 'knitting'),
-                        is_free=pattern_data.get('free', False),
-                        rating=pattern_data.get('rating', 0),
-                        rating_count=pattern_data.get('rating_count', 0)
-                    )
-                    created_count += 1
-            
-            return created_count, patterns
-            
-        except Exception as e:
-            print(f"Error fetching patterns: {e}")
-            return 0, []
-
+    
+    def search_patterns(self, query=None, yarn_weight=None, difficulty=None, 
+                       free_only=False, count=20):
+        """Поиск схем по параметрам"""
+        params = {
+            'page_size': min(count, 100),
+            'craft': 'knitting'
+        }
+        
+        if query:
+            params['query'] = query
+        if yarn_weight:
+            params['weight'] = yarn_weight.lower()
+        if free_only:
+            params['availability'] = 'free'
+        
+        print(f"🔍 Поиск схем: {params}")
+        
+        data = self._make_request('patterns/search.json', params)
+        
+        if not data or 'patterns' not in data:
+            return []
+        
+        return data['patterns'][:count]
+    
 def get_yarn_type_mapping():
-    """Сопоставление типов пряжи между нашей системой и Ravelry"""
+    """Возвращает маппинг типов пряжи для фильтрации"""
     return {
-        'fingering': ['Fingering', 'Lace', 'Super Fine'],
-        'sport': ['Sport', 'Light'],
-        'dk': ['DK', 'Light Worsted'],
-        'worsted': ['Worsted', 'Medium', 'Aran'],
-        'bulky': ['Bulky', 'Chunky', 'Super Bulky'],
-        'other': ['Any', 'Not Specified']
+        'lace': 'Lace',
+        'light fingering': 'Light Fingering',
+        'fingering': 'Fingering',
+        'sport': 'Sport',
+        'dk': 'DK',
+        'worsted': 'Worsted',
+        'aran': 'Aran',
+        'bulky': 'Bulky',
+        'super bulky': 'Super Bulky',
+        'jumbo': 'Jumbo',
     }
+
+# Синглтон экземпляры для удобства
+ravelry_personal = RavelryAPI(use_personal=True)
+#ravelry_readonly = RavelryAPI(use_personal=False)
