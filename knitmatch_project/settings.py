@@ -119,16 +119,15 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
-
-STATICFILES_FINDERS = [
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-]
+if DEBUG:
+    # Для разработки
+    STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+else:
+    # Для продакшена на Render
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    # Также указываем где искать статику
+    STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # Настройки аутентификации
 LOGIN_REDIRECT_URL = '/'
