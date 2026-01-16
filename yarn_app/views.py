@@ -196,6 +196,26 @@ def use_in_project(request, yarn_id):
 @login_required
 def projects(request):
     """Страница проектов и схем"""
+    # ВАЖНО: Берем ВСЕ схемы из базы
+    all_patterns = Pattern.objects.all().order_by('-id')  # Сначала новые
+    
+    # Фильтрация
+    difficulty_filter = request.GET.get('difficulty', '')
+    yarn_weight_filter = request.GET.get('yarn_weight', '')
+    search_query = request.GET.get('search', '')
+    
+    patterns = all_patterns
+    
+    if difficulty_filter:
+        patterns = patterns.filter(difficulty=difficulty_filter)
+    
+    if yarn_weight_filter:
+        patterns = patterns.filter(yarn_weight__icontains=yarn_weight_filter)
+    
+    if search_query:
+        patterns = patterns.filter(name__icontains=search_query)
+
+    """Страница проектов и схем"""
     user_projects = Project.objects.filter(user=request.user).order_by('-created_at')
     
     # ПОЛУЧАЕМ СХЕМЫ ИЗ БАЗЫ (вместо "свежих схем из API")
@@ -433,7 +453,7 @@ def pattern_search(request):
 
     context = {
         'patterns': suitable_patterns,
-        'favorite_ids': favorite_ids,
+        'favorite_ids': list(favorite_pattern_ids),
         'user_yarns': user_yarns,
         'favorite_pattern_ids': list(favorite_pattern_ids), 
         'difficulty_filter': difficulty_filter,

@@ -108,96 +108,74 @@ class RavelryAPI:
             print(f"❌ Ошибка сети: {e}")
             return None
     
-    def fetch_popular_patterns(self, count=20, yarn_weight=None):
-        """Загружает популярные схемы с Ravelry"""
-        print(f"📥 Загружаю {count} популярных схем...")
+    def fetch_popular_patterns(count=10):
+        """Загрузка популярных схем - ВРЕМЕННАЯ ЗАГЛУШКА"""
+        print(f"🛠 DEBUG RavelryAPI.fetch_popular_patterns({count}) - заглушка")
         
-        params = {
-            'page_size': min(count, 100),
-            'sort': 'popularity',
-            'craft': 'knitting'
-        }
-        
-        if yarn_weight:
-            params['weight'] = yarn_weight.lower()
-            print(f"   Фильтр по весу пряжи: {yarn_weight}")
-        
-        data = self._make_request('patterns/search.json', params)
-        
-        if not data or 'patterns' not in data:
-            print("❌ Не получили данные от API")
-            return 0, []
-        
-        patterns = data['patterns'][:count]
-        created_count = 0
-        
-        print(f"📊 Обрабатываю {len(patterns)} схем...")
-        
-        for i, pattern_data in enumerate(patterns, 1):
-            pattern_id = str(pattern_data.get('id', ''))
+        try:
+            # ВРЕМЕННАЯ ЗАГЛУШКА - создаем тестовые схемы
+            from .models import Pattern
             
-            if not pattern_id:
-                continue
+            # Проверяем, есть ли уже схемы
+            existing_count = Pattern.objects.count()
+            print(f"🛠 DEBUG: В базе уже есть {existing_count} схем")
             
-            # Проверяем, есть ли уже в базе
-            if Pattern.objects.filter(ravelry_id=pattern_id).exists():
-                print(f"   {i}. Уже в базе: {pattern_data.get('name', '')[:40]}")
-                continue
+            if existing_count >= 20:
+                print("🛠 DEBUG: Уже достаточно схем, пропускаем загрузку")
+                return 0, "Уже достаточно схем в базе"
             
-            # Извлекаем данные
-            name = pattern_data.get('name', 'Без названия')
+            # Создаем тестовые схемы
+            test_patterns = [
+                {
+                    'name': 'Теплый свитер "Зимний вечер"',
+                    'author': 'Анна Иванова',
+                    'difficulty': 'intermediate',
+                    'yarn_weight': 'Камвольная',
+                    'is_free': True,
+                    'rating': 4.5,
+                    'photo_url': 'https://placehold.co/400x300/cccccc/969696/png?text=Свитер',
+                    'pattern_url': '#',
+                    'description': 'Красивый теплый свитер для зимних вечеров'
+                },
+                {
+                    'name': 'Детские носочки "Кролик"',
+                    'author': 'Мария Петрова',
+                    'difficulty': 'beginner',
+                    'yarn_weight': 'Спортивная',
+                    'is_free': True,
+                    'rating': 4.2,
+                    'photo_url': 'https://placehold.co/400x300/cccccc/969696/png?text=Носочки',
+                    'pattern_url': '#',
+                    'description': 'Милые детские носочки с ушками'
+                },
+                {
+                    'name': 'Ажурный шарф "Весна"',
+                    'author': 'Елена Сидорова',
+                    'difficulty': 'easy',
+                    'yarn_weight': 'Кружевная',
+                    'is_free': False,
+                    'rating': 4.7,
+                    'photo_url': 'https://placehold.co/400x300/cccccc/969696/png?text=Шарф',
+                    'pattern_url': '#',
+                    'description': 'Легкий ажурный шарф для весны'
+                }
+            ]
             
-            # Фото
-            first_photo = pattern_data.get('first_photo', {})
-            photo_url = first_photo.get('medium_url', '') if first_photo else ''
+            created_count = 0
+            for pattern_data in test_patterns:
+                # Проверяем, нет ли уже такой схемы
+                if not Pattern.objects.filter(name=pattern_data['name']).exists():
+                    Pattern.objects.create(**pattern_data)
+                    created_count += 1
             
-            # Вес пряжи
-            yarn_weight_data = pattern_data.get('yarn_weight', {})
-            yarn_weight_name = yarn_weight_data.get('name', 'Not Specified')
+            print(f"🛠 DEBUG: Создано {created_count} тестовых схем")
+            return created_count, "Тестовые схемы созданы"
             
-            # Сложность
-            difficulty_avg = pattern_data.get('difficulty_average', 2.5)
-            difficulty = self._convert_difficulty(difficulty_avg)
-            
-            # Рейтинг
-            rating = pattern_data.get('rating_average', 0)
-            rating_count = pattern_data.get('rating_count', 0)
-            
-            # Бесплатная ли
-            is_free = pattern_data.get('free', False)
-            
-            # URL схемы
-            pattern_url = pattern_data.get('permalink', '#')
-            if pattern_url != '#':
-                pattern_url = f"https://www.ravelry.com/patterns/library/{pattern_url}"
-            
-            # Описание
-            description = pattern_data.get('notes', '')[:500] if pattern_data.get('notes') else ''
-            
-            # Создаем запись в базе
-            try:
-                Pattern.objects.create(
-                    ravelry_id=pattern_id,
-                    name=name,
-                    yarn_weight=yarn_weight_name,
-                    photo_url=photo_url,
-                    pattern_url=pattern_url,
-                    difficulty=difficulty,
-                    source='ravelry',
-                    craft='knitting',
-                    is_free=is_free,
-                    rating=rating,
-                    rating_count=rating_count,
-                    description=description
-                )
-                created_count += 1
-                print(f"   {i}. ✅ Загружена: {name[:40]}")
-                
-            except Exception as e:
-                print(f"   {i}. ❌ Ошибка сохранения: {e}")
-        
-        print(f"📈 Итого загружено новых схем: {created_count}")
-        return created_count, patterns
+        except Exception as e:
+            print(f"🛠 DEBUG Ошибка в fetch_popular_patterns: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return 0, str(e)
     
     def _convert_difficulty(self, rating):
         """Конвертирует рейтинг сложности"""
@@ -233,7 +211,7 @@ class RavelryAPI:
             return []
         
         return data['patterns'][:count]
-    
+
 def get_yarn_type_mapping():
     """Возвращает маппинг типов пряжи для фильтрации"""
     return {
@@ -251,4 +229,4 @@ def get_yarn_type_mapping():
 
 # Синглтон экземпляры для удобства
 ravelry_personal = RavelryAPI(use_personal=True)
-#ravelry_readonly = RavelryAPI(use_personal=False)
+# ravelry_readonly = RavelryAPI(use_personal=False)
