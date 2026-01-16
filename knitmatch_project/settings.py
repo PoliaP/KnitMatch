@@ -42,6 +42,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -119,15 +120,18 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-if DEBUG:
-    # Для разработки
-    STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-else:
-    # Для продакшена на Render
-    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+
+# WhiteNoise для продакшена
+if not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-    # Также указываем где искать статику
-    STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+    # Дополнительные настройки WhiteNoise
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_MANIFEST_STRICT = False
+else:
+    # Для разработки
+    print("⚙️ Режим разработки: DEBUG=True")
 
 # Настройки аутентификации
 LOGIN_REDIRECT_URL = '/'

@@ -1,0 +1,461 @@
+/* detail_yarn.css */
+
+/* Основные стили страницы */
+body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Контейнер */
+.detail-container {
+    width: 100%;
+    max-width: 600px;
+    animation: fadeIn 0.6s ease-out;
+}
+
+/* Карточка деталей */
+.detail-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    position: relative;
+}
+
+/* Цветовой заголовок */
+.color-header {
+    height: 120px;
+    background: linear-gradient(45deg, rgba(0,0,0,0.1), rgba(0,0,0,0.2));
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.color-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, 
+        rgba(138, 79, 255, 0.3), 
+        rgba(0, 212, 170, 0.3));
+    opacity: 0.7;
+}
+
+/* Цветовой бейдж */
+.color-badge {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 6px solid white;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    position: relative;
+    z-index: 2;
+    margin-top: -50px;
+    transition: transform 0.3s ease;
+}
+
+.color-badge:hover {
+    transform: scale(1.05);
+}
+
+/* Основное содержимое */
+.detail-content {
+    padding: 2.5rem;
+    position: relative;
+}
+
+/* Название пряжи */
+.yarn-title {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.yarn-name {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.yarn-type-badge {
+    display: inline-block;
+    background: linear-gradient(45deg, #8a4fff, #00d4aa);
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 25px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(138, 79, 255, 0.2);
+}
+
+/* Статистика */
+.yarn-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin: 2rem 0;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1.5rem;
+    background: #f8f9ff;
+    border-radius: 15px;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.stat-item:hover {
+    transform: translateY(-5px);
+    border-color: #8a4fff;
+    box-shadow: 0 10px 20px rgba(138, 79, 255, 0.1);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #8a4fff, #00d4aa);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem auto;
+    font-size: 1.3rem;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 0.3rem;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 500;
+}
+
+/* Информационные блоки */
+.info-section {
+    background: #f8f9ff;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #8a4fff;
+}
+
+.info-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.info-header i {
+    color: #8a4fff;
+    margin-right: 0.8rem;
+    font-size: 1.2rem;
+}
+
+.info-header h4 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.info-content {
+    color: #555;
+    line-height: 1.6;
+}
+
+/* Производитель */
+.manufacturer-badge {
+    display: inline-block;
+    background: #e9ecef;
+    color: #495057;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Примечания */
+.notes-box {
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 0.5rem;
+    font-style: italic;
+    line-height: 1.6;
+}
+
+/* Мета информация */
+.meta-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1.5rem;
+    border-top: 2px solid #e9ecef;
+    margin-top: 2rem;
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+}
+
+.meta-item i {
+    margin-right: 0.5rem;
+    color: #8a4fff;
+}
+
+/* Кнопки действий */
+.action-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.btn-back {
+    background: linear-gradient(45deg, #8a4fff, #00d4aa);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 1rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.btn-back:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(138, 79, 255, 0.3);
+    color: white;
+}
+
+.btn-delete {
+    background: white;
+    border: 2px solid #ff6b8b;
+    color: #ff6b8b;
+    border-radius: 10px;
+    padding: 1rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.btn-delete:hover {
+    background: #ff6b8b;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 107, 139, 0.3);
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Эффект пульсации для цвета */
+@keyframes colorPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(138, 79, 255, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(138, 79, 255, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(138, 79, 255, 0);
+    }
+}
+
+.color-badge.pulse {
+    animation: colorPulse 2s infinite;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .detail-content {
+        padding: 1.5rem;
+    }
+    
+    .yarn-stats {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .action-buttons {
+        grid-template-columns: 1fr;
+    }
+    
+    .meta-info {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+    
+    .yarn-name {
+        font-size: 1.5rem;
+    }
+    
+    .color-badge {
+        width: 80px;
+        height: 80px;
+        margin-top: -40px;
+    }
+}
+
+@media (max-width: 576px) {
+    body {
+        padding: 10px;
+    }
+    
+    .detail-container {
+        animation: slideIn 0.5s ease-out;
+    }
+    
+    .color-header {
+        height: 100px;
+    }
+    
+    .stat-item {
+        padding: 1rem;
+    }
+    
+    .info-section {
+        padding: 1rem;
+    }
+}
+
+/* Дополнительные стили для статусов */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-left: 1rem;
+}
+
+.status-available {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-low {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-out {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Эффект при наведении на карточку */
+.detail-card:hover {
+    transform: translateY(-5px);
+    transition: transform 0.3s ease;
+}
+
+/* Декоративные элементы */
+.decorative-dots {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 5px;
+}
+
+.decorative-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #8a4fff;
+    opacity: 0.3;
+}
+
+.decorative-dots span:nth-child(2) {
+    background: #00d4aa;
+}
+
+.decorative-dots span:nth-child(3) {
+    background: #ff6b8b;
+}
+
+/* Кастомный скролл */
+.info-section::-webkit-scrollbar {
+    width: 6px;
+}
+
+.info-section::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.info-section::-webkit-scrollbar-thumb {
+    background: linear-gradient(45deg, #8a4fff, #00d4aa);
+    border-radius: 3px;
+}
+
+/* Эффект свечения для важной информации */
+.highlight {
+    position: relative;
+    padding: 1rem;
+    border-radius: 10px;
+    background: linear-gradient(45deg, rgba(138, 79, 255, 0.1), rgba(0, 212, 170, 0.1));
+    border-left: 4px solid #8a4fff;
+    animation: glow 2s infinite alternate;
+}
+
+@keyframes glow {
+    from {
+        box-shadow: 0 0 5px rgba(138, 79, 255, 0.3);
+    }
+    to {
+        box-shadow: 0 0 20px rgba(138, 79, 255, 0.6);
+    }
+}
