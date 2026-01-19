@@ -500,14 +500,11 @@ def toggle_favorite(request, pattern_id):
 @login_required
 def favorites(request):
     """Страница избранных схем"""
-    print(f"[DEBUG] Пользователь: {request.user.username}")
     
     # Получаем избранные схемы пользователя
     favorite_patterns = Pattern.objects.filter(
         favorite__user=request.user
     ).distinct()
-    
-    print(f"[DEBUG] Найдено схем: {favorite_patterns.count()}")
     
     # Пагинация - 20 схем на страницу
     paginator = Paginator(favorite_patterns, 20)
@@ -545,37 +542,27 @@ def get_pattern_url_from_ravelry(ravelry_id):
 @login_required
 def refresh_patterns(request):
     """Загружает случайные схемы из Ravelry"""
-    print("=" * 50)
-    print("🔄 ЗАГРУЗКА СЛУЧАЙНЫХ СХЕМ")
-    print("=" * 50)
     
     try:
         count = int(request.POST.get('count', 6))
         
         # 1. Пробуем загрузить случайные схемы
         try:
-            print("1. Подключаюсь к Ravelry API...")
             connected = ravelry_personal.test_connection()
             
             if connected:
-                print("✅ API подключено!")
-                print(f"2. Получаю {count} СЛУЧАЙНЫХ схем...")
-                
                 # Получаем случайные схемы вместо популярных
                 patterns_data = get_random_patterns(count)
                 
                 if patterns_data and len(patterns_data) > 0:
-                    print(f"✅ Получено {len(patterns_data)} случайных схем")
                     return save_real_patterns(patterns_data, count)
         except Exception as api_error:
             print(f"⚠ Ошибка API: {api_error}")
         
         # 2. Если API не сработал - тестовые схемы
-        print("3. Создаю тестовые схемы...")
         return create_test_patterns(count)
         
     except Exception as e:
-        print(f"❌ Общая ошибка: {e}")
         return create_test_patterns(6)
 
 def get_random_patterns(count):
@@ -611,34 +598,19 @@ def get_random_patterns(count):
     if yarn_weight:
         params['weight'] = yarn_weight
     
-    print(f"   Ищу: query='{query}', weight='{yarn_weight}', page={page}")
-    
     # Делаем запрос к API
     data = ravelry_personal._make_request('patterns/search.json', params)
     
     if not data or 'patterns' not in data:
-        print(f"   ❌ Нет данных для query='{query}'")
         return []
     
     patterns = data.get('patterns', [])
     
     if not patterns:
-        print(f"   ⚠ Пустой результат для query='{query}'")
         return []
-    
-    # ДЕБАГ: посмотрим первую схему
-    if patterns:
-        first_pattern = patterns[0]
-        print("\n   📋 Пример данных первой схемы:")
-        print(f"      ID: {first_pattern.get('id')}")
-        print(f"      Name: {first_pattern.get('name')}")
-        print(f"      Permalink: '{first_pattern.get('permalink')}'")
-        print(f"      Все ключи: {list(first_pattern.keys())[:10]}...")
     
     # Перемешиваем результаты
     random.shuffle(patterns)
-    
-    print(f"   ✅ Найдено {len(patterns)} схем по запросу '{query}'")
     
     return patterns[:count]
 
@@ -650,17 +622,13 @@ def create_ravelry_url(pattern_data, ravelry_id):
     if permalink and isinstance(permalink, str):
         permalink = permalink.strip()
         
-        print(f"   DEBUG: raw permalink = '{permalink}'")
-        
         # Если это уже полный URL
         if permalink.startswith('http'):
-            print(f"   DEBUG: полный URL: {permalink}")
             return permalink
         
         # Если это путь Ravelry (начинается с /patterns/)
         elif permalink.startswith('/patterns/'):
             result = f'https://www.ravelry.com{permalink}'
-            print(f"   DEBUG: добавляю домен: {result}")
             return result
         
         # Если это просто slug без слэша (например "ultimate-mittens")
@@ -668,18 +636,15 @@ def create_ravelry_url(pattern_data, ravelry_id):
             # Проверим, есть ли слэш внутри
             if '/' in permalink:
                 result = f'https://www.ravelry.com/{permalink}'
-                print(f"   DEBUG: добавляю домен и слэш: {result}")
                 return result
             else:
                 # Просто slug - добавляем полный путь
                 result = f'https://www.ravelry.com/patterns/library/{permalink}'
-                print(f"   DEBUG: создаю из slug: {result}")
                 return result
         
         # Любой другой путь
         else:
             result = f'https://www.ravelry.com{permalink}'
-            print(f"   DEBUG: общий случай: {result}")
             return result
         
     if ravelry_id:
@@ -687,43 +652,15 @@ def create_ravelry_url(pattern_data, ravelry_id):
             # Пробуем числовой ID
             pattern_id_int = int(ravelry_id)
             result = f'https://www.ravelry.com/patterns/library/{pattern_id_int}'
-            print(f"   DEBUG: создаю по числовому ID: {result}")
-            return result
         except (ValueError, TypeError):
             # ID не число
             result = f'https://www.ravelry.com/patterns/library/{ravelry_id}'
-            print(f"   DEBUG: создаю по строковому ID: {result}")
             return result
     
     # Запасной вариант
     result = f'https://www.ravelry.com/patterns/search'
-    print(f"   DEBUG: запасной URL: {result}")
     return result
 
-
-def fix_existing_pattern_urls():
-    """Исправляет уже существующие неправильные ссылки"""
-    from .models import Pattern
-    
-    patterns = Pattern.objects.filter(pattern_url__contains='ravelry.com')
-    
-    for pattern in patterns:
-        old_url = pattern.pattern_url
-        if 'ravelry.com/' not in old_url:
-            # Находим где кончается "ravelry.com"
-            parts = old_url.split('ravelry.com')
-            if len(parts) > 1:
-                path = parts[1].strip()
-                if path and path[0].isalpha():
-                    # Это slug типа "ultimate-mittens"
-                    new_url = f'https://www.ravelry.com/patterns/library/{path}'
-                else:
-                    # Создаем по ID
-                    new_url = f'https://www.ravelry.com/patterns/library/{pattern.ravelry_id}'
-                
-                pattern.pattern_url = new_url
-                pattern.save()
-                print(f"Исправлено {pattern.id}: {old_url} -> {new_url}")
 
 def save_real_patterns(patterns_data, count):
     """Сохраняет реальные схемы"""
@@ -732,27 +669,20 @@ def save_real_patterns(patterns_data, count):
     for i, pattern_data in enumerate(patterns_data[:count], 1):
         try:
             if not isinstance(pattern_data, dict):
-                print(f"   ⚠ [{i}] Пропускаю - не dict")
                 continue
             
             name = pattern_data.get('name', f'Схема {i}')
             ravelry_id_value = pattern_data.get('id')
             
             if not name or not ravelry_id_value:
-                print(f"   ⚠ [{i}] Пропускаю - нет имени или ID: {name}")
                 continue
             
             # Проверяем, есть ли уже такая схема
             if Pattern.objects.filter(ravelry_id=str(ravelry_id_value)).exists():
-                print(f"   ⏭️ [{i}] Уже существует: {name}")
                 continue
             
             # ОТЛАДКА: покажем permalink
             permalink = pattern_data.get('permalink', '')
-            print(f"\n   🔍 [{i}] Анализ для '{name}':")
-            print(f"      ID: {ravelry_id_value}")
-            print(f"      Permalink raw: '{permalink}'")
-            print(f"      Permalink type: {type(permalink)}")
             
             # Получаем автора
             designer_data = pattern_data.get('designer', {})
@@ -775,8 +705,6 @@ def save_real_patterns(patterns_data, count):
             
             # Фото
             first_photo = pattern_data.get('first_photo', {})
-
-            print(f"\n   📸 [{i}] Анализ фото для '{name}':")
             if isinstance(first_photo, dict):
                 print(f"      Доступные размеры фото:")
                 for key, value in first_photo.items():
@@ -785,22 +713,15 @@ def save_real_patterns(patterns_data, count):
 
 
             photo_url = get_best_photo_url(first_photo)
-            print(f"   ✅ Выбран размер: {photo_url}")
             
             # Рейтинг
             rating_data = pattern_data.get('rating', {})
             rating = rating_data.get('average', 0) if isinstance(rating_data, dict) else 0
-            
-            # КРИТИЧЕСКИЙ МОМЕНТ: создаем ссылку на Ravelry с новой функцией
-            print(f"   🛠️ [{i}] Создаю ссылку...")
+
             pattern_url = create_ravelry_url(pattern_data, ravelry_id_value)
-            
-            # Проверяем результат
-            print(f"   ✅ [{i}] Финальная ссылка: {pattern_url}")
             
             # Проверяем наличие слэша после .com
             if 'ravelry.com' in pattern_url and 'ravelry.com/' not in pattern_url:
-                print(f"   ⚠ [{i}] Внимание! Возможная проблема с URL!")
                 # Автоматически исправляем
                 if pattern_url.endswith('ravelry.com'):
                     pattern_url = f'{pattern_url}/'
@@ -814,17 +735,15 @@ def save_real_patterns(patterns_data, count):
                 difficulty=difficulty,
                 is_free=pattern_data.get('free', False),
                 rating=rating,
-                pattern_url=pattern_url,  # Используем правильно созданный URL
+                pattern_url=pattern_url,
                 photo_url=photo_url,
                 craft='knitting',
                 source='ravelry'
             )
             
             saved_patterns.append(pattern)
-            print(f"   ✅ [{i}] Сохранена: {name}")
             
         except Exception as e:
-            print(f"   ❌ [{i}] Ошибка: {e}")
             import traceback
             traceback.print_exc()
             continue
@@ -925,10 +844,7 @@ def create_test_patterns(count):
                 'pattern_url': pattern.pattern_url,
             })
             
-            print(f"   ✅ [{i}] Тестовая: {name}")
-            
         except Exception as e:
-            print(f"   ❌ [{i}] Ошибка: {e}")
             continue
     
     return JsonResponse({
@@ -941,16 +857,10 @@ def create_test_patterns(count):
 @csrf_exempt
 @login_required
 def refresh_patterns_simple(request):
-    """Простая версия - только тестовые схемы"""
-    print("=" * 50)
-    print("🔄 ПРОСТАЯ ЗАГРУЗКА")
-    print("=" * 50)
-    
     try:
         count = int(request.POST.get('count', 20))
         return create_test_patterns(count)
     except Exception as e:
-        print(f"❌ Ошибка: {e}")
         return JsonResponse({
             'success': False,
             'error': str(e)
