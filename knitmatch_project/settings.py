@@ -126,28 +126,21 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 # WhiteNoise для продакшена
 if not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-    # Дополнительные настройки WhiteNoise
     WHITENOISE_USE_FINDERS = True
     WHITENOISE_MANIFEST_STRICT = False
-else:
-    # Для разработки
-    print("⚙️ Режим разработки: DEBUG=True")
 
 # Настройки аутентификации
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 LOGIN_URL = '/login/'
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Загрузка переменных окружения из .env файла
 env_file = BASE_DIR / '.env'
-
 if env_file.exists():
-    print(f"📁 Загружаю переменные из {env_file}")
     with open(env_file, 'r') as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith('#'):
-                # Обрабатываем строки с кавычками
                 if '=' in line:
                     key, value = line.split('=', 1)
                     key = key.strip()
@@ -157,36 +150,3 @@ if env_file.exists():
 # Настройки Ravelry API
 RAVELRY_USERNAME = os.environ.get('RAVELRY_USERNAME', '')
 RAVELRY_PERSONAL_ACCESS_TOKEN = os.environ.get('RAVELRY_PERSONAL_ACCESS_TOKEN', '')
-
-# Проверка настроек
-if not RAVELRY_USERNAME or not RAVELRY_PERSONAL_ACCESS_TOKEN:
-    print("⚠ ВНИМАНИЕ: Не установлены учетные данные Ravelry API")
-    print("   Создайте файл .env в корне проекта с переменными:")
-    print("   RAVELRY_USERNAME='ваш_username'")
-    print("   RAVELRY_PERSONAL_ACCESS_TOKEN='ваш_токен'")
-else:
-    print(f"✅ Учетные данные Ravelry API загружены")
-    print(f"   Username: {RAVELRY_USERNAME[:10]}...")
-    print(f"   Token: {RAVELRY_PERSONAL_ACCESS_TOKEN[:10]}...")
-
-print("\n" + "="*50)
-print("🧪 ПРОВЕРКА RAVELRY API")
-print("="*50)
-
-if RAVELRY_USERNAME and RAVELRY_PERSONAL_ACCESS_TOKEN:
-    print(f"✅ Учетные данные найдены")
-    print(f"   Username/App ID: {RAVELRY_USERNAME}")
-    print(f"   Token (первые 10): {RAVELRY_PERSONAL_ACCESS_TOKEN[:10]}...")
-    
-    try:
-        # Тестируем базовую аутентификацию
-        import base64
-        auth_string = f"{RAVELRY_USERNAME}:{RAVELRY_PERSONAL_ACCESS_TOKEN}"
-        auth_header = f"Basic {base64.b64encode(auth_string.encode()).decode()}"
-        print(f"   Auth header (первые 50): {auth_header[:50]}...")
-    except Exception as e:
-        print(f"⚠ Ошибка формирования auth: {e}")
-else:
-    print("❌ Учетные данные не найдены")
-
-print("="*50 + "\n")

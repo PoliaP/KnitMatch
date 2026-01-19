@@ -40,7 +40,7 @@ class ProjectInline(admin.TabularInline):
 @admin.register(UserYarn)
 class UserYarnAdmin(admin.ModelAdmin):
     list_display = ('id', 'colored_name', 'user', 'yarn_type_display', 'colored_color', 
-                    'amount_with_icon', 'weight_display', 'total_weight_display', 'created_at')
+                    'amount', 'amount_with_icon', 'weight_display', 'total_weight_display', 'created_at')
     list_filter = ('yarn_type', 'created_at', 'user')
     search_fields = ('name', 'color', 'manufacturer', 'user__username')
     list_editable = ('amount',)
