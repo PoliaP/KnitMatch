@@ -9,11 +9,32 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/favorites.css' %}">
     <link rel="stylesheet" href="{% static 'css/my_yarn.css' %}">
+    <style>
+        .custom-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 300px;
+            max-width: 400px;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
 </head>
 <body>
-    <!-- CSRF токен для AJAX -->
+    <!-- CSRF токен в скрытом поле -->
     {% csrf_token %}
-    <input type="hidden" id="csrfToken" value="{{ csrf_token }}">
     
     <!-- Навигация -->
     <nav class="navbar navbar-expand-lg">
@@ -96,13 +117,13 @@
                 {% if patterns %}
                 <div class="sort-options">
                     <span class="text-muted me-2">Сортировка:</span>
-                    <button class="sort-btn active" onclick="sortFavorites('recent')">
+                    <button class="sort-btn active" data-sort-type="recent">
                         <i class="fas fa-clock me-1"></i>Сначала новые
                     </button>
-                    <button class="sort-btn" onclick="sortFavorites('rating')">
+                    <button class="sort-btn" data-sort-type="rating">
                         <i class="fas fa-star me-1"></i>По рейтингу
                     </button>
-                    <button class="sort-btn" onclick="sortFavorites('difficulty')">
+                    <button class="sort-btn" data-sort-type="difficulty">
                         <i class="fas fa-signal me-1"></i>По сложности
                     </button>
                 </div>
@@ -112,9 +133,9 @@
             <!-- Список избранного -->
             <div id="favoritesList">
                 {% if patterns %}
-                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="patternsContainer">
                         {% for pattern in patterns %}
-                        <div class="col" data-pattern-id="{{ pattern.id }}">
+                        <div class="col pattern-card-container" data-pattern-id="{{ pattern.id }}">
                             <div class="pattern-card">
                                 <div class="pattern-image-container">
                                     {% if pattern.photo_url %}
@@ -134,11 +155,11 @@
                                         <span class="premium-badge">ПРЕМИУМ</span>
                                     {% endif %}
                                     
-                                    <button class="favorite-btn active" 
-                                            onclick="removeFromFavorites({{ pattern.id }}, this)"
-                                            title="Удалить из избранного">
-                                        <i class="fas fa-heart"></i>
-                                    </button>
+                                    <button class="favorite-btn active remove-favorite-btn" 
+        data-pattern-id="{{ pattern.id }}"
+        title="Удалить из избранного">
+    <i class="fas fa-heart"></i>
+</button>
                                 </div>
                                 
                                 <div class="pattern-info">
@@ -151,7 +172,7 @@
                                     {% endif %}
                                     
                                     <div class="pattern-meta">
-                                        <span class="meta-item">
+                                        <span class="meta-item difficulty">
                                             <i class="fas fa-signal"></i>
                                             {{ pattern.get_difficulty_display }}
                                         </span>
@@ -192,10 +213,10 @@
                                         </button>
                                         {% endif %}
                                         
-                                        <button class="btn btn-favorite active"
-                                                onclick="removeFromFavorites({{ pattern.id }}, this)">
-                                            <i class="fas fa-trash me-1"></i>Удалить
-                                        </button>
+                                        <button class="btn btn-favorite active remove-favorite-btn" 
+        data-pattern-id="{{ pattern.id }}">
+    <i class="fas fa-trash me-1"></i>Удалить
+</button>
                                     </div>
                                 </div>
                             </div>
@@ -238,113 +259,15 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Простой JavaScript -->
     <script>
-        // Удаление из избранного
-        async function removeFromFavorites(patternId, button) {
-            if (!confirm('Удалить эту схему из избранного?')) {
-                return;
-            }
-            
-            const csrfToken = document.getElementById('csrfToken').value;
-            
-            try {
-                const response = await fetch(`/patterns/favorite/${patternId}/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRFToken': csrfToken,
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    // Находим и удаляем карточку
-                    const card = button.closest('.col');
-                    if (card) {
-                        card.style.opacity = '0';
-                        card.style.transform = 'scale(0.9)';
-                        card.style.transition = 'all 0.3s ease';
-                        
-                        setTimeout(() => {
-                            card.remove();
-                            
-                            // Проверяем, остались ли ещё схемы
-                            const remainingCards = document.querySelectorAll('.pattern-card');
-                            if (remainingCards.length === 0) {
-                                document.getElementById('favoritesList').innerHTML = `
-                                    <div class="empty-favorites">
-                                        <div class="empty-icon">
-                                            <i class="fas fa-heart"></i>
-                                        </div>
-                                        <h3 class="mb-3">У вас пока нет избранных схем</h3>
-                                        <p class="text-muted mb-4">Находите интересные схемы и добавляйте их в избранное, чтобы не потерять</p>
-                                        <a href="{% url 'projects' %}" class="btn btn-primary btn-lg">
-                                            <i class="fas fa-search me-2"></i>Найти схемы
-                                        </a>
-                                    </div>
-                                `;
-                            }
-                        }, 300);
-                    }
-                    
-                    // Показываем уведомление
-                    showNotification(data.message, 'success');
-                } else {
-                    showNotification('Ошибка: ' + data.message, 'error');
-                }
-            } catch (error) {
-                console.error('Ошибка:', error);
-                showNotification('Ошибка соединения с сервером', 'error');
-            }
-        }
-        
-        // Сортировка (упрощенная, без перезагрузки страницы)
-        function sortFavorites(sortType) {
-            // Просто меняем активную кнопку
-            document.querySelectorAll('.sort-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-            
-            // В реальном приложении здесь был бы AJAX запрос
-            console.log(`Сортировка по: ${sortType}`);
-        }
-        
-        // Показ уведомлений
-        function showNotification(message, type = 'info') {
-            // Создаем уведомление
-            const notification = document.createElement('div');
-            notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-            notification.style.cssText = `
-                top: 20px;
-                right: 20px;
-                z-index: 9999;
-                min-width: 300px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            `;
-            notification.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
-                        ${message}
-                    </div>
-                    <button type="button" class="btn-close btn-sm" onclick="this.parentElement.parentElement.remove()"></button>
-                </div>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            // Автоматическое удаление через 5 секунд
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.remove();
-                }
-            }, 5000);
-        }
-    </script>
+    // Глобальные переменные для JavaScript
+    window.APP_CONFIG = {
+        toggleFavoriteUrl: "{% url 'toggle_favorite' 0 %}".replace('/0/', '/'), // Базовый URL
+        patternsUrl: "{% url 'projects' %}",
+        csrfToken: "{{ csrf_token }}"
+    };
+</script>
+    <!-- Ваш внешний JS файл -->
+    <script src="{% static 'js/favorites.js' %}"></script>
 </body>
 </html>

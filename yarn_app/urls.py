@@ -36,4 +36,5 @@ urlpatterns = [
     path('patterns/refresh/', views.refresh_patterns, name='refresh_patterns'),
     path('patterns/refresh/simple/', views.refresh_patterns_simple, name='refresh_simple'),
     path('patterns/refresh/force/', views.refresh_patterns_force, name='refresh_force'),
+    path('toggle-favorite/<int:pattern_id>/', views.toggle_favorite, name='toggle_favorite'),
 ]

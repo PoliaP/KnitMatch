@@ -220,6 +220,11 @@ def projects(request):
     yarn_weight_filter = request.GET.get('yarn_weight', '')
     search_query = request.GET.get('search', '')
     
+    # ДОБАВЛЕНЫ НОВЫЕ ФИЛЬТРЫ
+    free_only = request.GET.get('free_only') == 'true'
+    with_photos = request.GET.get('with_photos') == 'true'
+    high_rated = request.GET.get('high_rated') == 'true'
+    
     patterns = all_patterns
     
     if difficulty_filter:
@@ -230,6 +235,16 @@ def projects(request):
     
     if search_query:
         patterns = patterns.filter(name__icontains=search_query)
+    
+    # ПРИМЕНЯЕМ НОВЫЕ ФИЛЬТРЫ
+    if free_only:
+        patterns = patterns.filter(is_free=True)
+    
+    if with_photos:
+        patterns = patterns.exclude(photo_url='').exclude(photo_url__isnull=True)
+    
+    if high_rated:
+        patterns = patterns.filter(rating__gte=4.0)
     
     # Пагинация - 20 схем на страницу
     paginator = Paginator(patterns, 20)
@@ -250,61 +265,20 @@ def projects(request):
             pattern__in=patterns_page
         ).values_list('pattern_id', flat=True)
     
-    # Статистика проектов
-    projects_stats = {
-        'total': user_projects.count(),
-        'planned': user_projects.filter(status='planned').count(),
-        'in_progress': user_projects.filter(status='in_progress').count(),
-        'completed': user_projects.filter(status='completed').count(),
-    }
-    
-    # Анализ пряжи пользователя
-    user_yarns = UserYarn.objects.filter(user=request.user)
-    
-    yarn_analysis = {
-        'by_type': {},
-        'total_yarns': user_yarns.count(),
-        'total_motki': 0,
-        'total_weight': 0,
-        'colors_count': 0,
-        'types_count': 0,
-    }
-    
-    colors_set = set()
-    types_set = set()
-    
-    for yarn in user_yarns:
-        yarn_weight = yarn.total_weight
-        yarn_analysis['total_weight'] += yarn_weight
-        yarn_analysis['total_motki'] += yarn.amount
-        colors_set.add(yarn.color)
-        types_set.add(yarn.yarn_type)
-        
-        type_display = yarn.get_yarn_type_display()
-        if type_display not in yarn_analysis['by_type']:
-            yarn_analysis['by_type'][type_display] = {
-                'amount': 0,
-                'total_weight': 0
-            }
-        
-        yarn_analysis['by_type'][type_display]['amount'] += yarn.amount
-        yarn_analysis['by_type'][type_display]['total_weight'] += yarn_weight
-    
-    yarn_analysis['colors_count'] = len(colors_set)
-    yarn_analysis['types_count'] = len(types_set)
-    
     # Собираем уникальные веса пряжи для фильтра
     yarn_weights = Pattern.objects.values_list('yarn_weight', flat=True).distinct()
     
+    # Передаем параметры фильтров в контекст для сохранения состояния чекбоксов
     context = {
         'projects': user_projects,
         'patterns': patterns_page,
         'favorite_pattern_ids': list(favorite_pattern_ids),
-        'stats': projects_stats,
-        'yarn_analysis': yarn_analysis,
         'difficulty_filter': difficulty_filter,
         'yarn_weight_filter': yarn_weight_filter,
         'search_query': search_query,
+        'free_only': free_only,  # ДОБАВЛЕНО
+        'with_photos': with_photos,  # ДОБАВЛЕНО
+        'high_rated': high_rated,  # ДОБАВЛЕНО
         'yarn_weights': sorted(set(yarn_weights)),
         'difficulty_choices': [
             ('', 'Любая сложность'),
@@ -652,12 +626,104 @@ def get_random_patterns(count):
         print(f"   ⚠ Пустой результат для query='{query}'")
         return []
     
+    # ДЕБАГ: посмотрим первую схему
+    if patterns:
+        first_pattern = patterns[0]
+        print("\n   📋 Пример данных первой схемы:")
+        print(f"      ID: {first_pattern.get('id')}")
+        print(f"      Name: {first_pattern.get('name')}")
+        print(f"      Permalink: '{first_pattern.get('permalink')}'")
+        print(f"      Все ключи: {list(first_pattern.keys())[:10]}...")
+    
     # Перемешиваем результаты
     random.shuffle(patterns)
     
     print(f"   ✅ Найдено {len(patterns)} схем по запросу '{query}'")
     
     return patterns[:count]
+
+def create_ravelry_url(pattern_data, ravelry_id):
+    """Создает правильный URL для схемы на Ravelry"""
+
+    permalink = pattern_data.get('permalink')
+    
+    if permalink and isinstance(permalink, str):
+        permalink = permalink.strip()
+        
+        print(f"   DEBUG: raw permalink = '{permalink}'")
+        
+        # Если это уже полный URL
+        if permalink.startswith('http'):
+            print(f"   DEBUG: полный URL: {permalink}")
+            return permalink
+        
+        # Если это путь Ravelry (начинается с /patterns/)
+        elif permalink.startswith('/patterns/'):
+            result = f'https://www.ravelry.com{permalink}'
+            print(f"   DEBUG: добавляю домен: {result}")
+            return result
+        
+        # Если это просто slug без слэша (например "ultimate-mittens")
+        elif not permalink.startswith('/'):
+            # Проверим, есть ли слэш внутри
+            if '/' in permalink:
+                result = f'https://www.ravelry.com/{permalink}'
+                print(f"   DEBUG: добавляю домен и слэш: {result}")
+                return result
+            else:
+                # Просто slug - добавляем полный путь
+                result = f'https://www.ravelry.com/patterns/library/{permalink}'
+                print(f"   DEBUG: создаю из slug: {result}")
+                return result
+        
+        # Любой другой путь
+        else:
+            result = f'https://www.ravelry.com{permalink}'
+            print(f"   DEBUG: общий случай: {result}")
+            return result
+        
+    if ravelry_id:
+        try:
+            # Пробуем числовой ID
+            pattern_id_int = int(ravelry_id)
+            result = f'https://www.ravelry.com/patterns/library/{pattern_id_int}'
+            print(f"   DEBUG: создаю по числовому ID: {result}")
+            return result
+        except (ValueError, TypeError):
+            # ID не число
+            result = f'https://www.ravelry.com/patterns/library/{ravelry_id}'
+            print(f"   DEBUG: создаю по строковому ID: {result}")
+            return result
+    
+    # Запасной вариант
+    result = f'https://www.ravelry.com/patterns/search'
+    print(f"   DEBUG: запасной URL: {result}")
+    return result
+
+
+def fix_existing_pattern_urls():
+    """Исправляет уже существующие неправильные ссылки"""
+    from .models import Pattern
+    
+    patterns = Pattern.objects.filter(pattern_url__contains='ravelry.com')
+    
+    for pattern in patterns:
+        old_url = pattern.pattern_url
+        if 'ravelry.com/' not in old_url:
+            # Находим где кончается "ravelry.com"
+            parts = old_url.split('ravelry.com')
+            if len(parts) > 1:
+                path = parts[1].strip()
+                if path and path[0].isalpha():
+                    # Это slug типа "ultimate-mittens"
+                    new_url = f'https://www.ravelry.com/patterns/library/{path}'
+                else:
+                    # Создаем по ID
+                    new_url = f'https://www.ravelry.com/patterns/library/{pattern.ravelry_id}'
+                
+                pattern.pattern_url = new_url
+                pattern.save()
+                print(f"Исправлено {pattern.id}: {old_url} -> {new_url}")
 
 def save_real_patterns(patterns_data, count):
     """Сохраняет реальные схемы"""
@@ -666,18 +732,27 @@ def save_real_patterns(patterns_data, count):
     for i, pattern_data in enumerate(patterns_data[:count], 1):
         try:
             if not isinstance(pattern_data, dict):
+                print(f"   ⚠ [{i}] Пропускаю - не dict")
                 continue
             
             name = pattern_data.get('name', f'Схема {i}')
             ravelry_id_value = pattern_data.get('id')
             
             if not name or not ravelry_id_value:
+                print(f"   ⚠ [{i}] Пропускаю - нет имени или ID: {name}")
                 continue
             
             # Проверяем, есть ли уже такая схема
             if Pattern.objects.filter(ravelry_id=str(ravelry_id_value)).exists():
                 print(f"   ⏭️ [{i}] Уже существует: {name}")
                 continue
+            
+            # ОТЛАДКА: покажем permalink
+            permalink = pattern_data.get('permalink', '')
+            print(f"\n   🔍 [{i}] Анализ для '{name}':")
+            print(f"      ID: {ravelry_id_value}")
+            print(f"      Permalink raw: '{permalink}'")
+            print(f"      Permalink type: {type(permalink)}")
             
             # Получаем автора
             designer_data = pattern_data.get('designer', {})
@@ -700,20 +775,35 @@ def save_real_patterns(patterns_data, count):
             
             # Фото
             first_photo = pattern_data.get('first_photo', {})
-            photo_url = first_photo.get('square_url', '') if isinstance(first_photo, dict) else ''
+
+            print(f"\n   📸 [{i}] Анализ фото для '{name}':")
+            if isinstance(first_photo, dict):
+                print(f"      Доступные размеры фото:")
+                for key, value in first_photo.items():
+                    if 'url' in key.lower() and value:
+                        print(f"      - {key}: {value[:50]}...")
+
+
+            photo_url = get_best_photo_url(first_photo)
+            print(f"   ✅ Выбран размер: {photo_url}")
             
             # Рейтинг
             rating_data = pattern_data.get('rating', {})
             rating = rating_data.get('average', 0) if isinstance(rating_data, dict) else 0
             
-            # Получаем permalink для ссылки на Ravelry
-            permalink = pattern_data.get('permalink', '')
-            if permalink:
-                # Если permalink есть, создаем полный URL
-                pattern_url = f'https://www.ravelry.com{permalink}'
-            else:
-                # Иначе создаем URL по ID
-                pattern_url = get_pattern_url_from_ravelry(ravelry_id_value)
+            # КРИТИЧЕСКИЙ МОМЕНТ: создаем ссылку на Ravelry с новой функцией
+            print(f"   🛠️ [{i}] Создаю ссылку...")
+            pattern_url = create_ravelry_url(pattern_data, ravelry_id_value)
+            
+            # Проверяем результат
+            print(f"   ✅ [{i}] Финальная ссылка: {pattern_url}")
+            
+            # Проверяем наличие слэша после .com
+            if 'ravelry.com' in pattern_url and 'ravelry.com/' not in pattern_url:
+                print(f"   ⚠ [{i}] Внимание! Возможная проблема с URL!")
+                # Автоматически исправляем
+                if pattern_url.endswith('ravelry.com'):
+                    pattern_url = f'{pattern_url}/'
             
             # Создаем схему
             pattern = Pattern.objects.create(
@@ -724,7 +814,7 @@ def save_real_patterns(patterns_data, count):
                 difficulty=difficulty,
                 is_free=pattern_data.get('free', False),
                 rating=rating,
-                pattern_url=pattern_url,  # Используем правильный URL
+                pattern_url=pattern_url,  # Используем правильно созданный URL
                 photo_url=photo_url,
                 craft='knitting',
                 source='ravelry'
@@ -735,6 +825,8 @@ def save_real_patterns(patterns_data, count):
             
         except Exception as e:
             print(f"   ❌ [{i}] Ошибка: {e}")
+            import traceback
+            traceback.print_exc()
             continue
     
     # Ответ
@@ -749,7 +841,7 @@ def save_real_patterns(patterns_data, count):
             'difficulty': pattern.get_difficulty_display(),
             'is_free': pattern.is_free,
             'rating': float(pattern.rating) if pattern.rating else 0,
-            'pattern_url': pattern.pattern_url,  # Возвращаем правильный URL
+            'pattern_url': pattern.pattern_url,
         })
     
     message = f'Загружено {len(saved_patterns)} схем' if saved_patterns else 'Нет новых схем'
@@ -760,6 +852,30 @@ def save_real_patterns(patterns_data, count):
         'patterns': response_patterns,
         'count': len(saved_patterns)
     })
+
+def get_best_photo_url(photo_data):
+    """Возвращает URL фото максимального качества"""
+    if not isinstance(photo_data, dict):
+        return ''
+    
+    # Порядок приоритета: от лучшего к худшему
+    quality_order = [
+        'large2_url',    # 1024x1024 (лучшее)
+        'large_url',     # 600x600
+        'medium2_url',   # 500x500
+        'medium_url',    # 300x300 (минимально приемлемое)
+        'small_url',     # 150x150 (плохое)
+        'square_url',    # 75x75 (очень плохое)
+        'thumbnail_url', # миниатюра
+    ]
+    
+    for quality in quality_order:
+        url = photo_data.get(quality)
+        if url and isinstance(url, str) and url.startswith('http'):
+            return url
+    
+    # Если ничего не нашли
+    return ''
 
 def create_test_patterns(count):
     """Создает тестовые схемы"""
@@ -831,7 +947,7 @@ def refresh_patterns_simple(request):
     print("=" * 50)
     
     try:
-        count = int(request.POST.get('count', 6))
+        count = int(request.POST.get('count', 20))
         return create_test_patterns(count)
     except Exception as e:
         print(f"❌ Ошибка: {e}")
@@ -844,22 +960,16 @@ def refresh_patterns_simple(request):
 @login_required
 def refresh_patterns_force(request):
     """Перезагрузка всех схем"""
-    print("=" * 50)
-    print("🔄 ПЕРЕЗАГРУЗКА ВСЕХ СХЕМ")
-    print("=" * 50)
-    
     try:
         count = int(request.POST.get('count', 6))
         
         # Удаляем все схемы
         deleted = Pattern.objects.all().delete()
-        print(f"🗑 Удалено {deleted[0]} схем")
         
         # Создаем новые
         return create_test_patterns(count)
         
     except Exception as e:
-        print(f"❌ Ошибка: {e}")
         return JsonResponse({
             'success': False,
             'error': str(e)
@@ -898,7 +1008,6 @@ def load_more_patterns(request):
             })
             
         except Exception as e:
-            print(f"❌ Ошибка в load_more_patterns: {e}")
             return JsonResponse({
                 'success': False,
                 'error': str(e)

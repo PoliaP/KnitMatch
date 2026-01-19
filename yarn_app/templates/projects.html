@@ -5,58 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Схемы для вязания - KnitMatch</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    
+    <!-- Подключение CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/projects.css' %}">
-    <style>
-        .pattern-card { opacity: 0; animation: fadeInUp 0.3s ease forwards; }
-        .notification {
-            position: fixed; top: 20px; right: 20px; 
-            z-index: 1000; max-width: 400px;
-        }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* Стили для пагинации */
-        .pagination .page-link {
-            color: #8a4fff;
-            border: 1px solid #dee2e6;
-        }
-        .pagination .page-item.active .page-link {
-            background-color: #8a4fff;
-            border-color: #8a4fff;
-            color: white;
-        }
-        .pagination .page-link:hover {
-            background-color: #f8f9fa;
-            color: #00d4aa;
-        }
-        
-        /* Стили для ссылок на Ravelry */
-        .ravelry-link {
-            background-color: #2b383f;
-            color: white;
-            border: none;
-        }
-        .ravelry-link:hover {
-            background-color: #1a2226;
-            color: white;
-        }
-        
-        /* Стили для карточек */
-        .pattern-card {
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .pattern-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
-        }
-    </style>
+
 </head>
 <body>
-    <!-- Навигация -->
+    <!-- Навигация (оставляем без изменений) -->
     <nav class="navbar navbar-expand-lg">
         <div class="container">
             <a class="navbar-brand" href="{% url 'home' %}">
@@ -108,13 +66,8 @@
                     <div class="stat-label">Всего схем</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon stat-icon-2"><i class="fas fa-gift"></i></div>
-                    <div class="stat-number">{{ page_obj.paginator.count }}</div>
-                    <div class="stat-label">Найдено</div>
-                </div>
-                <div class="stat-card">
                     <div class="stat-icon stat-icon-3"><i class="fas fa-star"></i></div>
-                    <div class="stat-number">{{ favorite_pattern_ids|length }}</div>
+                    <div id="favoritesCount" class="stat-number">{{ favorite_pattern_ids|length }}</div>
                     <div class="stat-label">В избранном</div>
                 </div>
                 <div class="stat-card">
@@ -158,23 +111,23 @@
                         <!-- Чекбоксы -->
                         <div class="filter-group">
                             <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="freeOnly">
+                                <input class="form-check-input" type="checkbox" id="freeOnly" {% if request.GET.free_only == 'true' %}checked{% endif %}>
                                 <label class="form-check-label" for="freeOnly">Только бесплатные</label>
                             </div>
                             <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="withPhotos">
+                                <input class="form-check-input" type="checkbox" id="withPhotos" {% if request.GET.with_photos == 'true' %}checked{% endif %}>
                                 <label class="form-check-label" for="withPhotos">Только с фото</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="highRated">
+                                <input class="form-check-input" type="checkbox" id="highRated" {% if request.GET.high_rated == 'true' %}checked{% endif %}>
                                 <label class="form-check-label" for="highRated">Высокий рейтинг (4+)</label>
                             </div>
                         </div>
                         
-                        <button class="btn btn-primary w-100 mt-3" onclick="applyFilters()">
+                        <button class="btn btn-primary w-100 mt-3" id="applyFiltersBtn">
                             <i class="fas fa-check me-2"></i>Применить
                         </button>
-                        <button class="btn btn-outline-primary w-100 mt-2" onclick="resetFilters()">
+                        <button class="btn btn-outline-primary w-100 mt-2" id="resetFiltersBtn">
                             <i class="fas fa-redo me-2"></i>Сбросить
                         </button>
                     </div>
@@ -189,17 +142,17 @@
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-search"></i></span>
                                     <input type="text" class="form-control" id="searchInput" 
-                                           placeholder="Поиск схем..." 
+                                           placeholder="Поиск схем по названию, автору или описанию..." 
                                            value="{{ search_query|default:'' }}">
                                 </div>
                             </div>
                             <div class="col-md-2 mb-3 mb-md-0">
-                                <button class="btn btn-primary w-100" onclick="applyFilters()">
+                                <button class="btn btn-primary w-100" id="searchBtn">
                                     <i class="fas fa-search me-2"></i>Найти
                                 </button>
                             </div>
                             <div class="col-md-2">
-                                <button class="btn btn-outline-primary w-100" onclick="loadPatternsFromAPI()">
+                                <button class="btn btn-outline-primary w-100" id="refreshBtn">
                                     <i class="fas fa-sync-alt me-2"></i>Обновить
                                 </button>
                             </div>
@@ -207,25 +160,54 @@
                     </div>
 
                     <!-- Активные фильтры -->
-                    {% if difficulty_filter or yarn_weight_filter or search_query %}
                     <div class="active-filters mb-4" id="activeFilters">
                         {% if difficulty_filter %}
-                        <span class="filter-tag">Сложность: 
+                        <span class="filter-tag">
+                            Сложность: 
                             {% if difficulty_filter == 'beginner' %}Начинающий
                             {% elif difficulty_filter == 'easy' %}Легкий
                             {% elif difficulty_filter == 'intermediate' %}Средний
                             {% elif difficulty_filter == 'experienced' %}Опытный
                             {% else %}{{ difficulty_filter }}{% endif %}
+                            <span class="remove" data-filter="difficulty">×</span>
                         </span>
                         {% endif %}
+                        
                         {% if yarn_weight_filter %}
-                        <span class="filter-tag">Пряжа: {{ yarn_weight_filter }}</span>
+                        <span class="filter-tag">
+                            Пряжа: {{ yarn_weight_filter }}
+                            <span class="remove" data-filter="yarn_weight">×</span>
+                        </span>
                         {% endif %}
+                        
                         {% if search_query %}
-                        <span class="filter-tag">Поиск: "{{ search_query }}"</span>
+                        <span class="filter-tag">
+                            Поиск: "{{ search_query }}"
+                            <span class="remove" data-filter="search">×</span>
+                        </span>
+                        {% endif %}
+                        
+                        {% if request.GET.free_only == 'true' %}
+                        <span class="filter-tag">
+                            Только бесплатные
+                            <span class="remove" data-filter="free_only">×</span>
+                        </span>
+                        {% endif %}
+                        
+                        {% if request.GET.with_photos == 'true' %}
+                        <span class="filter-tag">
+                            Только с фото
+                            <span class="remove" data-filter="with_photos">×</span>
+                        </span>
+                        {% endif %}
+                        
+                        {% if request.GET.high_rated == 'true' %}
+                        <span class="filter-tag">
+                            Высокий рейтинг
+                            <span class="remove" data-filter="high_rated">×</span>
+                        </span>
                         {% endif %}
                     </div>
-                    {% endif %}
 
                     <!-- Информация о странице -->
                     <div class="page-info mb-3">
@@ -235,27 +217,26 @@
                         </p>
                     </div>
 
-                    <!-- Новые схемы (будет добавлено JS) -->
-                    <div id="newPatternsContainer"></div>
-
-                    <!-- Список схем -->
+                    <!-- Список схем (оставляем без изменений) -->
                     <div id="patternsContainer">
                         {% if patterns %}
                             <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
                                 {% for pattern in patterns %}
                                 <div class="col">
                                     <div class="card h-100 shadow-sm pattern-card" 
-                                         style="animation-delay: {{ forloop.counter0|divisibleby:3|yesno:'0s,0.1s,0.2s' }};">
+                                         data-animation-delay="{{ forloop.counter0|divisibleby:3|yesno:'0s,0.1s,0.2s' }}">
                                         
-                                        <!-- Фото -->
+                                        <!-- Фото схемы -->
                                         {% if pattern.photo_url and pattern.photo_url != '#' %}
-                                            <img src="{{ pattern.photo_url }}" class="card-img-top" 
-                                                 alt="{{ pattern.name }}" style="height: 200px; object-fit: cover; cursor: pointer;"
-                                                 onclick="openRavelryLink('{{ pattern.pattern_url|escapejs }}')">
+                                            <img src="{{ pattern.photo_url }}" 
+                                                 class="card-img-top" 
+                                                 alt="{{ pattern.name }}"
+                                                 style="height: 200px; object-fit: cover; cursor: pointer;"
+                                                 onclick="window.open('{{ pattern.pattern_url|escapejs }}', '_blank')">
                                         {% else %}
                                             <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
                                                  style="height: 200px; cursor: pointer;"
-                                                 onclick="openRavelryLink('{{ pattern.pattern_url|escapejs }}')">
+                                                 onclick="window.open('{{ pattern.pattern_url|escapejs }}', '_blank')">
                                                 <i class="fas fa-image fa-3x text-muted"></i>
                                             </div>
                                         {% endif %}
@@ -308,23 +289,27 @@
                                             {% endif %}
                                         </div>
                                         
+                                        <!-- Кнопки действий -->
                                         <div class="card-footer bg-white border-top-0">
                                             <div class="d-flex justify-content-between align-items-center">
-                                                <!-- Избранное -->
+                                                <!-- Кнопка избранного -->
                                                 <button class="btn btn-sm {% if pattern.id in favorite_pattern_ids %}btn-danger{% else %}btn-outline-danger{% endif %}"
-                                                        onclick="toggleFavorite({{ pattern.id }}, this)">
+                                                        data-pattern-id="{{ pattern.id }}"
+                                                        title="{% if pattern.id in favorite_pattern_ids %}Удалить из избранного{% else %}Добавить в избранное{% endif %}">
                                                     <i class="{% if pattern.id in favorite_pattern_ids %}fas{% else %}far{% endif %} fa-heart"></i>
                                                     <span class="ms-1 d-none d-sm-inline">
-                                                        {% if pattern.id in favorite_pattern_ids %}В избранном{% else %}В избранное{% endif %}
+                                                        {% if pattern.id in favorite_pattern_ids %}Удалить{% else %}В избранное{% endif %}
                                                     </span>
                                                 </button>
                                                 
-                                                <!-- Ссылка на Ravelry -->
+                                                <!-- Ссылка на схему -->
                                                 {% if pattern.pattern_url and pattern.pattern_url != '#' %}
-                                                    <button onclick="openRavelryLink('{{ pattern.pattern_url|escapejs }}')" 
-                                                            class="btn btn-sm ravelry-link">
-                                                        <i class="fas fa-external-link-alt me-1"></i>На Ravelry
-                                                    </button>
+                                                    <a href="{{ pattern.pattern_url }}" 
+                                                       target="_blank" 
+                                                       rel="noopener noreferrer"
+                                                       class="btn btn-primary btn-sm">
+                                                        <i class="fas fa-external-link-alt me-1"></i>Схема
+                                                    </a>
                                                 {% else %}
                                                     <span class="text-muted small">
                                                         <i class="fas fa-lock me-1"></i>Требуется покупка
@@ -339,64 +324,64 @@
                             
                             <!-- Пагинация -->
                             {% if page_obj.paginator.num_pages > 1 %}
-                            <nav aria-label="Навигация по страницам" class="mt-5">
-                                <ul class="pagination justify-content-center">
-                                    {% if page_obj.has_previous %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if difficulty_filter %}&difficulty={{ difficulty_filter }}{% endif %}{% if yarn_weight_filter %}&yarn_weight={{ yarn_weight_filter }}{% endif %}"
-                                           aria-label="Предыдущая">
-                                            <span aria-hidden="true">&laquo;</span>
-                                        </a>
-                                    </li>
-                                    {% else %}
-                                    <li class="page-item disabled">
-                                        <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
-                                            <span aria-hidden="true">&laquo;</span>
-                                        </a>
-                                    </li>
-                                    {% endif %}
-                                    
-                                    {% for num in page_obj.paginator.page_range %}
-                                        {% if num == page_obj.number %}
-                                            <li class="page-item active" aria-current="page">
-                                                <span class="page-link">{{ num }}</span>
-                                            </li>
-                                        {% elif num > page_obj.number|add:-3 and num < page_obj.number|add:3 %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if difficulty_filter %}&difficulty={{ difficulty_filter }}{% endif %}{% if yarn_weight_filter %}&yarn_weight={{ yarn_weight_filter }}{% endif %}">
-                                                    {{ num }}
-                                                </a>
-                                            </li>
-                                        {% elif num == 1 or num == page_obj.paginator.num_pages %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if difficulty_filter %}&difficulty={{ difficulty_filter }}{% endif %}{% if yarn_weight_filter %}&yarn_weight={{ yarn_weight_filter }}{% endif %}">
-                                                    {{ num }}
-                                                </a>
-                                            </li>
-                                        {% elif num == page_obj.number|add:-3 or num == page_obj.number|add:3 %}
-                                            <li class="page-item disabled">
-                                                <span class="page-link">...</span>
-                                            </li>
-                                        {% endif %}
-                                    {% endfor %}
-                                    
-                                    {% if page_obj.has_next %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if difficulty_filter %}&difficulty={{ difficulty_filter }}{% endif %}{% if yarn_weight_filter %}&yarn_weight={{ yarn_weight_filter }}{% endif %}"
-                                           aria-label="Следующая">
-                                            <span aria-hidden="true">&raquo;</span>
-                                        </a>
-                                    </li>
-                                    {% else %}
-                                    <li class="page-item disabled">
-                                        <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
-                                            <span aria-hidden="true">&raquo;</span>
-                                        </a>
-                                    </li>
-                                    {% endif %}
-                                </ul>
-                            </nav>
-                            {% endif %}
+<nav aria-label="Навигация по страницам" class="mt-5">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if difficulty_filter %}&difficulty={{ difficulty_filter }}{% endif %}{% if yarn_weight_filter %}&yarn_weight={{ yarn_weight_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if free_only %}&free_only=true{% endif %}{% if with_photos %}&with_photos=true{% endif %}{% if high_rated %}&high_rated=true{% endif %}"
+               aria-label="Предыдущая">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for num in page_obj.paginator.page_range %}
+            {% if num == page_obj.number %}
+                <li class="page-item active" aria-current="page">
+                    <span class="page-link">{{ num }}</span>
+                </li>
+            {% elif num > page_obj.number|add:-3 and num < page_obj.number|add:3 %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ num }}{% if difficulty_filter %}&difficulty={{ difficulty_filter }}{% endif %}{% if yarn_weight_filter %}&yarn_weight={{ yarn_weight_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if free_only %}&free_only=true{% endif %}{% if with_photos %}&with_photos=true{% endif %}{% if high_rated %}&high_rated=true{% endif %}">
+                        {{ num }}
+                    </a>
+                </li>
+            {% elif num == 1 or num == page_obj.paginator.num_pages %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ num }}{% if difficulty_filter %}&difficulty={{ difficulty_filter }}{% endif %}{% if yarn_weight_filter %}&yarn_weight={{ yarn_weight_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if free_only %}&free_only=true{% endif %}{% if with_photos %}&with_photos=true{% endif %}{% if high_rated %}&high_rated=true{% endif %}">
+                        {{ num }}
+                    </a>
+                </li>
+            {% elif num == page_obj.number|add:-3 or num == page_obj.number|add:3 %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if difficulty_filter %}&difficulty={{ difficulty_filter }}{% endif %}{% if yarn_weight_filter %}&yarn_weight={{ yarn_weight_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if free_only %}&free_only=true{% endif %}{% if with_photos %}&with_photos=true{% endif %}{% if high_rated %}&high_rated=true{% endif %}"
+               aria-label="Следующая">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
                             
                         {% else %}
                             <!-- Сообщение если нет схем -->
@@ -406,7 +391,7 @@
                                 </div>
                                 <h3 class="mb-3">Схемы не найдены</h3>
                                 <p class="text-muted mb-4">Попробуйте изменить фильтры или загрузить новые схемы</p>
-                                <button class="btn btn-primary" onclick="loadPatternsFromAPI()">
+                                <button class="btn btn-primary" id="refreshEmptyBtn">
                                     <i class="fas fa-sync-alt me-2"></i>Загрузить новые схемы
                                 </button>
                             </div>
@@ -440,102 +425,8 @@
         </div>
     </footer>
 
-    <!-- Уведомление -->
-    <div id="notification" class="notification alert alert-success d-none" role="alert"></div>
-
     <!-- Подключение JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'js/projects.js' %}"></script>
-    
-    <!-- CSRF токен для AJAX запросов -->
-    <script>
-        // CSRF токен для AJAX
-        const csrfToken = "{{ csrf_token }}";
-        
-        // Функция для открытия ссылки на Ravelry
-        function openRavelryLink(url) {
-            if (url && url !== '#') {
-                window.open(url, '_blank');
-            }
-        }
-        
-        // Функция для применения фильтров
-        function applyFilters() {
-            const difficulty = document.getElementById('difficultyFilter').value;
-            const yarnWeight = document.getElementById('yarnWeightFilter').value;
-            const searchQuery = document.getElementById('searchInput').value;
-            const freeOnly = document.getElementById('freeOnly').checked ? 'true' : '';
-            
-            let url = '?';
-            
-            if (difficulty) url += `difficulty=${difficulty}&`;
-            if (yarnWeight) url += `yarn_weight=${yarnWeight}&`;
-            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
-            if (freeOnly) url += `free=${freeOnly}&`;
-            
-            // Удаляем последний & или ?
-            url = url.replace(/[&?]$/, '');
-            
-            window.location.href = url || '?';
-        }
-        
-        // Функция для сброса фильтров
-        function resetFilters() {
-            window.location.href = '{% url "projects" %}';
-        }
-        
-        // Функция для обновления схем через API
-        function loadPatternsFromAPI() {
-            const button = event.target;
-            const originalText = button.innerHTML;
-            
-            button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Загрузка...';
-            button.disabled = true;
-            
-            fetch('{% url "refresh_patterns" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': csrfToken,
-                },
-                body: 'count=6'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showNotification(data.message, 'success');
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
-                } else {
-                    showNotification(data.error || 'Ошибка загрузки', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showNotification('Ошибка загрузки схем', 'danger');
-            })
-            .finally(() => {
-                button.innerHTML = originalText;
-                button.disabled = false;
-            });
-        }
-        
-        // Функция для показа уведомлений
-        function showNotification(message, type = 'success') {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.className = `notification alert alert-${type} fade show`;
-            notification.classList.remove('d-none');
-            
-            setTimeout(() => {
-                notification.classList.add('fade');
-                setTimeout(() => {
-                    notification.classList.add('d-none');
-                    notification.classList.remove('fade');
-                }, 500);
-            }, 3000);
-        }
-    </script>
 </body>
 </html>
