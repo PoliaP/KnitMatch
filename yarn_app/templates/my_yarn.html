@@ -228,9 +228,9 @@
                             
                             <!-- Нижняя часть карточки -->
                             <div class="yarn-card-footer">
-                                <button class="btn btn-sm btn-use-yarn" onclick="alert('Добавление в проект скоро будет доступно')">
+                                <a href="{% url 'projects' %}" class="btn btn-sm btn-use-yarn">
                                     <i class="fas fa-project-diagram me-1"></i>В проект
-                                </button>
+                                </a>
                                 <a href="{% url 'yarn_detail' yarn.id %}" class="btn btn-sm btn-outline-yarn">
                                     <i class="fas fa-info-circle me-1"></i>Подробнее
                                 </a>
