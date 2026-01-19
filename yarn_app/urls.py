@@ -34,4 +34,6 @@ urlpatterns = [
     path('patterns/favorite/<int:pattern_id>/', views.toggle_favorite, name='toggle_favorite'),
     path('patterns/load-more/', views.load_more_patterns, name='load_more_patterns'),
     path('patterns/refresh/', views.refresh_patterns, name='refresh_patterns'),
+    path('patterns/refresh/simple/', views.refresh_patterns_simple, name='refresh_simple'),
+    path('patterns/refresh/force/', views.refresh_patterns_force, name='refresh_force'),
 ]

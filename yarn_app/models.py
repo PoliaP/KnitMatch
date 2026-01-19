@@ -56,6 +56,9 @@ class Pattern(models.Model):
     author = models.CharField(max_length=200, blank=True, null=True, verbose_name="Автор")
     category = models.CharField(max_length=100, blank=True, null=True, verbose_name="Категория")
     description = models.TextField(blank=True, null=True, verbose_name="Описание")
+    yardage = models.IntegerField(default=0, verbose_name="Метраж (ярды)", blank=True, null=True)
+    notes = models.TextField(blank=True, null=True, verbose_name="Заметки")
+    published = models.CharField(max_length=50, blank=True, null=True, verbose_name="Дата публикации")
     
     class Meta:
         ordering = ['-rating']

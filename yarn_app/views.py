@@ -4,8 +4,10 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.db.models import Q
+from django.views.decorators.csrf import csrf_exempt
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from .models import UserYarn, Pattern, Project, ProjectYarn, Favorite
-from .ravelry_api import RavelryAPI, get_yarn_type_mapping
+from .ravelry_api import ravelry_personal, get_yarn_type_mapping
 
 def home(request):
     """Главная страница"""
@@ -23,7 +25,6 @@ def signup(request):
         form = UserCreationForm()
     
     return render(request, 'signup.html', {'form': form})
-
 
 @login_required
 def logout_view(request):
@@ -171,7 +172,18 @@ def yarn_projects(request, yarn_id):
         matching_patterns = matching_patterns | patterns
     
     # Убираем дубликаты и сортируем по рейтингу
-    matching_patterns = matching_patterns.distinct().order_by('-rating')[:20]
+    matching_patterns = matching_patterns.distinct().order_by('-rating')
+    
+    # Пагинация - 20 схем на страницу
+    paginator = Paginator(matching_patterns, 20)
+    page = request.GET.get('page', 1)
+    
+    try:
+        patterns_page = paginator.page(page)
+    except PageNotAnInteger:
+        patterns_page = paginator.page(1)
+    except EmptyPage:
+        patterns_page = paginator.page(paginator.num_pages)
     
     # Получаем все избранные схемы пользователя
     favorite_pattern_ids = Favorite.objects.filter(
@@ -181,9 +193,11 @@ def yarn_projects(request, yarn_id):
     
     context = {
         'yarn': yarn,
-        'patterns': matching_patterns,
+        'patterns': patterns_page,
         'favorite_pattern_ids': list(favorite_pattern_ids),
-        'search_message': f"Найдено {matching_patterns.count()} схем для пряжи: {yarn.get_yarn_type_display()}"
+        'search_message': f"Найдено {matching_patterns.count()} схем для пряжи: {yarn.get_yarn_type_display()}",
+        'paginator': paginator,
+        'page_obj': patterns_page,
     }
     
     return render(request, 'yarn_projects.html', context)
@@ -196,29 +210,9 @@ def use_in_project(request, yarn_id):
 @login_required
 def projects(request):
     """Страница проектов и схем"""
-    # ВАЖНО: Берем ВСЕ схемы из базы
-    all_patterns = Pattern.objects.all().order_by('-id')  # Сначала новые
-    
-    # Фильтрация
-    difficulty_filter = request.GET.get('difficulty', '')
-    yarn_weight_filter = request.GET.get('yarn_weight', '')
-    search_query = request.GET.get('search', '')
-    
-    patterns = all_patterns
-    
-    if difficulty_filter:
-        patterns = patterns.filter(difficulty=difficulty_filter)
-    
-    if yarn_weight_filter:
-        patterns = patterns.filter(yarn_weight__icontains=yarn_weight_filter)
-    
-    if search_query:
-        patterns = patterns.filter(name__icontains=search_query)
-
-    """Страница проектов и схем"""
     user_projects = Project.objects.filter(user=request.user).order_by('-created_at')
     
-    # ПОЛУЧАЕМ СХЕМЫ ИЗ БАЗЫ (вместо "свежих схем из API")
+    # Получаем схемы из базы
     all_patterns = Pattern.objects.all().order_by('-created_at')
     
     # Фильтрация схем
@@ -237,15 +231,23 @@ def projects(request):
     if search_query:
         patterns = patterns.filter(name__icontains=search_query)
     
-    # Ограничиваем количество если нужно
-    patterns = patterns[:50]
+    # Пагинация - 20 схем на страницу
+    paginator = Paginator(patterns, 20)
+    page = request.GET.get('page', 1)
+    
+    try:
+        patterns_page = paginator.page(page)
+    except PageNotAnInteger:
+        patterns_page = paginator.page(1)
+    except EmptyPage:
+        patterns_page = paginator.page(paginator.num_pages)
     
     # Получаем избранные схемы
     favorite_pattern_ids = []
     if request.user.is_authenticated:
         favorite_pattern_ids = Favorite.objects.filter(
             user=request.user,
-            pattern__in=patterns
+            pattern__in=patterns_page
         ).values_list('pattern_id', flat=True)
     
     # Статистика проектов
@@ -296,7 +298,7 @@ def projects(request):
     
     context = {
         'projects': user_projects,
-        'patterns': patterns,  # Теперь передаем отфильтрованные схемы
+        'patterns': patterns_page,
         'favorite_pattern_ids': list(favorite_pattern_ids),
         'stats': projects_stats,
         'yarn_analysis': yarn_analysis,
@@ -312,6 +314,8 @@ def projects(request):
             ('experienced', 'Опытный'),
         ],
         'total_patterns': patterns.count(),
+        'paginator': paginator,
+        'page_obj': patterns_page,
     }
     
     return render(request, 'projects.html', context)
@@ -443,16 +447,24 @@ def pattern_search(request):
     if free_only:
         suitable_patterns = suitable_patterns.filter(is_free=True)
     
-    # Ограничиваем количество
-    suitable_patterns = suitable_patterns.order_by('-rating')[:50]
+    # Пагинация - 20 схем на страницу
+    paginator = Paginator(suitable_patterns.order_by('-rating'), 20)
+    page = request.GET.get('page', 1)
+    
+    try:
+        patterns_page = paginator.page(page)
+    except PageNotAnInteger:
+        patterns_page = paginator.page(1)
+    except EmptyPage:
+        patterns_page = paginator.page(paginator.num_pages)
 
     favorite_pattern_ids = Favorite.objects.filter(
         user=request.user,
-        pattern__in=suitable_patterns
+        pattern__in=patterns_page
     ).values_list('pattern_id', flat=True)
 
     context = {
-        'patterns': suitable_patterns,
+        'patterns': patterns_page,
         'favorite_ids': list(favorite_pattern_ids),
         'user_yarns': user_yarns,
         'favorite_pattern_ids': list(favorite_pattern_ids), 
@@ -465,10 +477,12 @@ def pattern_search(request):
             ('easy', 'Легкий'),
             ('intermediate', 'Средний'),
             ('experienced', 'Опытный'),
-        ]
+        ],
+        'paginator': paginator,
+        'page_obj': patterns_page,
     }
     
-    return render(request, 'projects.html', context)
+    return render(request, 'pattern_search.html', context)
 
 @login_required
 def toggle_favorite(request, pattern_id):
@@ -498,7 +512,7 @@ def toggle_favorite(request, pattern_id):
                 'is_favorite': is_favorite
             })
         else:
-            return redirect('pattern_search')
+            return redirect(request.META.get('HTTP_REFERER', 'projects'))
             
     except Exception as e:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -507,7 +521,7 @@ def toggle_favorite(request, pattern_id):
                 'message': str(e)
             })
         else:
-            return redirect('pattern_search')
+            return redirect(request.META.get('HTTP_REFERER', 'projects'))
 
 @login_required
 def favorites(request):
@@ -521,28 +535,349 @@ def favorites(request):
     
     print(f"[DEBUG] Найдено схем: {favorite_patterns.count()}")
     
-    # Выводим в консоль что нашли
-    for pattern in favorite_patterns:
-        print(f"[DEBUG] - {pattern.name} (ID: {pattern.id})")
+    # Пагинация - 20 схем на страницу
+    paginator = Paginator(favorite_patterns, 20)
+    page = request.GET.get('page', 1)
+    
+    try:
+        patterns_page = paginator.page(page)
+    except PageNotAnInteger:
+        patterns_page = paginator.page(1)
+    except EmptyPage:
+        patterns_page = paginator.page(paginator.num_pages)
     
     context = {
-        'patterns': favorite_patterns,
+        'patterns': patterns_page,
+        'paginator': paginator,
+        'page_obj': patterns_page,
     }
     
     return render(request, 'favorites.html', context)
 
+def get_pattern_url_from_ravelry(ravelry_id):
+    """Создает корректный URL для схемы на Ravelry"""
+    if not ravelry_id:
+        return '#'
+    
+    # Проверяем, является ли ravelry_id числом
+    try:
+        pattern_id = int(ravelry_id)
+        return f'https://www.ravelry.com/patterns/library/{pattern_id}'
+    except (ValueError, TypeError):
+        # Если это не число (например, test_1234), используем альтернативный формат
+        return f'https://www.ravelry.com/patterns/search#pattern={ravelry_id}'
+
+@csrf_exempt
+@login_required
+def refresh_patterns(request):
+    """Загружает случайные схемы из Ravelry"""
+    print("=" * 50)
+    print("🔄 ЗАГРУЗКА СЛУЧАЙНЫХ СХЕМ")
+    print("=" * 50)
+    
+    try:
+        count = int(request.POST.get('count', 6))
+        
+        # 1. Пробуем загрузить случайные схемы
+        try:
+            print("1. Подключаюсь к Ravelry API...")
+            connected = ravelry_personal.test_connection()
+            
+            if connected:
+                print("✅ API подключено!")
+                print(f"2. Получаю {count} СЛУЧАЙНЫХ схем...")
+                
+                # Получаем случайные схемы вместо популярных
+                patterns_data = get_random_patterns(count)
+                
+                if patterns_data and len(patterns_data) > 0:
+                    print(f"✅ Получено {len(patterns_data)} случайных схем")
+                    return save_real_patterns(patterns_data, count)
+        except Exception as api_error:
+            print(f"⚠ Ошибка API: {api_error}")
+        
+        # 2. Если API не сработал - тестовые схемы
+        print("3. Создаю тестовые схемы...")
+        return create_test_patterns(count)
+        
+    except Exception as e:
+        print(f"❌ Общая ошибка: {e}")
+        return create_test_patterns(6)
+
+def get_random_patterns(count):
+    """Получает случайные схемы из Ravelry"""
+    import random
+    
+    # Параметры для поиска с разными запросами
+    search_queries = [
+        '',  # Пустой запрос
+        'sweater', 'shawl', 'hat', 'socks',
+        'mittens', 'scarf', 'cardigan', 'blanket',
+        'baby', 'cable', 'lace', 'colorwork'
+    ]
+    
+    yarn_weights = [
+        '',  # Любая пряжа
+        'fingering', 'sport', 'dk', 'worsted', 'bulky'
+    ]
+    
+    # Выбираем случайные параметры
+    query = random.choice(search_queries)
+    yarn_weight = random.choice(yarn_weights)
+    page = random.randint(1, 10)  # Берем со случайной страницы
+    
+    params = {
+        'page_size': min(count, 50),
+        'page': page,
+        'craft': 'knitting'
+    }
+    
+    if query:
+        params['query'] = query
+    if yarn_weight:
+        params['weight'] = yarn_weight
+    
+    print(f"   Ищу: query='{query}', weight='{yarn_weight}', page={page}")
+    
+    # Делаем запрос к API
+    data = ravelry_personal._make_request('patterns/search.json', params)
+    
+    if not data or 'patterns' not in data:
+        print(f"   ❌ Нет данных для query='{query}'")
+        return []
+    
+    patterns = data.get('patterns', [])
+    
+    if not patterns:
+        print(f"   ⚠ Пустой результат для query='{query}'")
+        return []
+    
+    # Перемешиваем результаты
+    random.shuffle(patterns)
+    
+    print(f"   ✅ Найдено {len(patterns)} схем по запросу '{query}'")
+    
+    return patterns[:count]
+
+def save_real_patterns(patterns_data, count):
+    """Сохраняет реальные схемы"""
+    saved_patterns = []
+    
+    for i, pattern_data in enumerate(patterns_data[:count], 1):
+        try:
+            if not isinstance(pattern_data, dict):
+                continue
+            
+            name = pattern_data.get('name', f'Схема {i}')
+            ravelry_id_value = pattern_data.get('id')
+            
+            if not name or not ravelry_id_value:
+                continue
+            
+            # Проверяем, есть ли уже такая схема
+            if Pattern.objects.filter(ravelry_id=str(ravelry_id_value)).exists():
+                print(f"   ⏭️ [{i}] Уже существует: {name}")
+                continue
+            
+            # Получаем автора
+            designer_data = pattern_data.get('designer', {})
+            author = designer_data.get('name', 'Неизвестно') if isinstance(designer_data, dict) else 'Неизвестно'
+            
+            # Получаем вес пряжи
+            yarn_weight_data = pattern_data.get('yarn_weight', {})
+            yarn_weight = yarn_weight_data.get('name', '') if isinstance(yarn_weight_data, dict) else ''
+            
+            # Сложность
+            difficulty_rating = pattern_data.get('difficulty_average', 0)
+            if difficulty_rating <= 1.5:
+                difficulty = 'beginner'
+            elif difficulty_rating <= 2.5:
+                difficulty = 'easy'
+            elif difficulty_rating <= 3.5:
+                difficulty = 'intermediate'
+            else:
+                difficulty = 'experienced'
+            
+            # Фото
+            first_photo = pattern_data.get('first_photo', {})
+            photo_url = first_photo.get('square_url', '') if isinstance(first_photo, dict) else ''
+            
+            # Рейтинг
+            rating_data = pattern_data.get('rating', {})
+            rating = rating_data.get('average', 0) if isinstance(rating_data, dict) else 0
+            
+            # Получаем permalink для ссылки на Ravelry
+            permalink = pattern_data.get('permalink', '')
+            if permalink:
+                # Если permalink есть, создаем полный URL
+                pattern_url = f'https://www.ravelry.com{permalink}'
+            else:
+                # Иначе создаем URL по ID
+                pattern_url = get_pattern_url_from_ravelry(ravelry_id_value)
+            
+            # Создаем схему
+            pattern = Pattern.objects.create(
+                ravelry_id=str(ravelry_id_value),
+                name=name[:200],
+                author=author[:200],
+                yarn_weight=yarn_weight[:50],
+                difficulty=difficulty,
+                is_free=pattern_data.get('free', False),
+                rating=rating,
+                pattern_url=pattern_url,  # Используем правильный URL
+                photo_url=photo_url,
+                craft='knitting',
+                source='ravelry'
+            )
+            
+            saved_patterns.append(pattern)
+            print(f"   ✅ [{i}] Сохранена: {name}")
+            
+        except Exception as e:
+            print(f"   ❌ [{i}] Ошибка: {e}")
+            continue
+    
+    # Ответ
+    response_patterns = []
+    for pattern in saved_patterns:
+        response_patterns.append({
+            'id': pattern.id,
+            'name': pattern.name,
+            'designer': pattern.author,
+            'yarn_weight': pattern.yarn_weight,
+            'photo_url': pattern.photo_url,
+            'difficulty': pattern.get_difficulty_display(),
+            'is_free': pattern.is_free,
+            'rating': float(pattern.rating) if pattern.rating else 0,
+            'pattern_url': pattern.pattern_url,  # Возвращаем правильный URL
+        })
+    
+    message = f'Загружено {len(saved_patterns)} схем' if saved_patterns else 'Нет новых схем'
+    
+    return JsonResponse({
+        'success': True,
+        'message': message,
+        'patterns': response_patterns,
+        'count': len(saved_patterns)
+    })
+
+def create_test_patterns(count):
+    """Создает тестовые схемы"""
+    import random
+    
+    test_patterns = []
+    
+    yarn_weights = ['Worsted', 'DK', 'Fingering', 'Sport', 'Bulky']
+    designers = ['Nora Gaughan', 'Andrea Mowry', 'Stephen West', 'Tin Can Knits']
+    pattern_names = ['Cozy Sweater', 'Lace Shawl', 'Cable Hat', 'Colorwork Mittens']
+    
+    for i in range(1, count + 1):
+        try:
+            ravelry_id = f"test_{i}_{random.randint(1000, 9999)}"
+            
+            if Pattern.objects.filter(ravelry_id=ravelry_id).exists():
+                continue
+            
+            name = f'{random.choice(pattern_names)} {i}'
+            
+            # Создаем тестовый URL для Ravelry
+            pattern_url = get_pattern_url_from_ravelry(ravelry_id)
+            
+            pattern = Pattern.objects.create(
+                ravelry_id=ravelry_id,
+                name=name,
+                author=random.choice(designers),
+                yarn_weight=random.choice(yarn_weights),
+                difficulty=random.choice(['beginner', 'easy', 'intermediate']),
+                is_free=random.choice([True, False]),
+                rating=round(random.uniform(3.5, 5.0), 1),
+                pattern_url=pattern_url,
+                photo_url='',
+                craft='knitting',
+                source='test'
+            )
+            
+            test_patterns.append({
+                'id': pattern.id,
+                'name': pattern.name,
+                'designer': pattern.author,
+                'yarn_weight': pattern.yarn_weight,
+                'photo_url': pattern.photo_url,
+                'difficulty': pattern.get_difficulty_display(),
+                'is_free': pattern.is_free,
+                'rating': float(pattern.rating),
+                'pattern_url': pattern.pattern_url,
+            })
+            
+            print(f"   ✅ [{i}] Тестовая: {name}")
+            
+        except Exception as e:
+            print(f"   ❌ [{i}] Ошибка: {e}")
+            continue
+    
+    return JsonResponse({
+        'success': True,
+        'message': f'Создано {len(test_patterns)} тестовых схем',
+        'patterns': test_patterns,
+        'count': len(test_patterns)
+    })
+
+@csrf_exempt
+@login_required
+def refresh_patterns_simple(request):
+    """Простая версия - только тестовые схемы"""
+    print("=" * 50)
+    print("🔄 ПРОСТАЯ ЗАГРУЗКА")
+    print("=" * 50)
+    
+    try:
+        count = int(request.POST.get('count', 6))
+        return create_test_patterns(count)
+    except Exception as e:
+        print(f"❌ Ошибка: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@csrf_exempt
+@login_required
+def refresh_patterns_force(request):
+    """Перезагрузка всех схем"""
+    print("=" * 50)
+    print("🔄 ПЕРЕЗАГРУЗКА ВСЕХ СХЕМ")
+    print("=" * 50)
+    
+    try:
+        count = int(request.POST.get('count', 6))
+        
+        # Удаляем все схемы
+        deleted = Pattern.objects.all().delete()
+        print(f"🗑 Удалено {deleted[0]} схем")
+        
+        # Создаем новые
+        return create_test_patterns(count)
+        
+    except Exception as e:
+        print(f"❌ Ошибка: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
 @login_required
 def load_more_patterns(request):
-    """AJAX загрузка дополнительных схем"""
-    if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        count, _ = RavelryAPI.fetch_popular_patterns(count=5)
-        
-        if count > 0:
-            # Получаем последние добавленные схемы
-            new_patterns = Pattern.objects.order_by('-created_at')[:5]
+    """AJAX загрузка дополнительных схем из базы"""
+    if request.method == 'GET' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            offset = int(request.GET.get('offset', 0))
+            limit = int(request.GET.get('limit', 5))
+            
+            # Получаем схемы из базы с пагинацией
+            patterns = Pattern.objects.order_by('-created_at')[offset:offset + limit]
             
             patterns_data = []
-            for pattern in new_patterns:
+            for pattern in patterns:
                 patterns_data.append({
                     'id': pattern.id,
                     'name': pattern.name,
@@ -552,28 +887,24 @@ def load_more_patterns(request):
                     'is_free': pattern.is_free,
                     'rating': pattern.rating,
                     'pattern_url': pattern.pattern_url,
+                    'designer': pattern.author,
                 })
             
             return JsonResponse({
                 'success': True,
                 'patterns': patterns_data,
-                'count': len(patterns_data)
+                'count': len(patterns_data),
+                'has_more': Pattern.objects.count() > offset + limit
+            })
+            
+        except Exception as e:
+            print(f"❌ Ошибка в load_more_patterns: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
             })
     
-    return JsonResponse({'success': False})
-
-@login_required
-def refresh_patterns(request):
-    """Обновление базы схем"""
-    if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        count, _ = RavelryAPI.fetch_popular_patterns(count=10)
-        
-        return JsonResponse({
-            'success': True,
-            'message': f'Загружено {count} новых схем'
-        })
-    
-    return redirect('pattern_search')
+    return JsonResponse({'success': False, 'error': 'Неправильный метод запроса'})
 
 # Вспомогательные функции
 def get_recommended_patterns(user):

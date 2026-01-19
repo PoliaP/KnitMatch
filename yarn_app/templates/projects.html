@@ -9,16 +9,49 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/projects.css' %}">
     <style>
-        .pattern-card {
-            animation: fadeInUp 0.3s ease forwards;
-            opacity: 0;
-        }
+        .pattern-card { opacity: 0; animation: fadeInUp 0.3s ease forwards; }
         .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-            max-width: 400px;
+            position: fixed; top: 20px; right: 20px; 
+            z-index: 1000; max-width: 400px;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Стили для пагинации */
+        .pagination .page-link {
+            color: #8a4fff;
+            border: 1px solid #dee2e6;
+        }
+        .pagination .page-item.active .page-link {
+            background-color: #8a4fff;
+            border-color: #8a4fff;
+            color: white;
+        }
+        .pagination .page-link:hover {
+            background-color: #f8f9fa;
+            color: #00d4aa;
+        }
+        
+        /* Стили для ссылок на Ravelry */
+        .ravelry-link {
+            background-color: #2b383f;
+            color: white;
+            border: none;
+        }
+        .ravelry-link:hover {
+            background-color: #1a2226;
+            color: white;
+        }
+        
+        /* Стили для карточек */
+        .pattern-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .pattern-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
         }
     </style>
 </head>
@@ -30,8 +63,8 @@
                 <div class="d-flex align-items-center">
                     <img src="{% static 'images/logo.jpg' %}" alt="Logo" height="60" class="rounded-circle me-2">
                     <div>
-                        <span class="fw-bold" style="color: #8a4fff; font-size: 1.4rem;">Knit</span>
-                        <span class="fw-bold" style="color: #00d4aa; font-size: 1.4rem;">Match</span>
+                        <span style="color: #8a4fff; font-weight: bold; font-size: 1.4rem;">Knit</span>
+                        <span style="color: #00d4aa; font-weight: bold; font-size: 1.4rem;">Match</span>
                     </div>
                 </div>
             </a>
@@ -43,24 +76,16 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <div class="navbar-nav ms-auto">
                     <a href="{% url 'home' %}" class="nav-link me-2">
-                        <button class="btn nav-btn">
-                            <i class="fas fa-home me-1"></i>Главная
-                        </button>
+                        <button class="btn nav-btn"><i class="fas fa-home me-1"></i>Главная</button>
                     </a>
                     <a href="{% url 'projects' %}" class="nav-link me-2">
-                        <button class="btn nav-btn active">
-                            <i class="fas fa-project-diagram me-1"></i>Схемы
-                        </button>
+                        <button class="btn nav-btn active"><i class="fas fa-project-diagram me-1"></i>Схемы</button>
                     </a>
                     <a href="{% url 'favorites' %}" class="nav-link me-2">
-                        <button class="btn nav-btn">
-                            <i class="fas fa-heart me-1"></i>Избранное
-                        </button>
+                        <button class="btn nav-btn"><i class="fas fa-heart me-1"></i>Избранное</button>
                     </a>
                     <a href="{% url 'my_yarn' %}" class="nav-link me-2">
-                        <button class="btn nav-btn">
-                            <i class="fas fa-box me-1"></i>Моя пряжа
-                        </button>
+                        <button class="btn nav-btn"><i class="fas fa-box me-1"></i>Моя пряжа</button>
                     </a>
                     <div class="nav-link">
                         <a href="{% url 'logout' %}" class="btn btn-outline-primary">
@@ -72,57 +97,35 @@
         </div>
     </nav>
 
-    <!-- Герой-секция -->
-    <section class="hero-section">
-        <div class="container text-center">
-            <h1 class="hero-title">
-                Коллекция <span class="text-gradient">схем для вязания</span>
-            </h1>
-            <p class="hero-subtitle">
-                 Находите подходящие схемы, добавляйте в избранное!
-            </p>
-        </div>
-    </section>
-
     <!-- Основной контент -->
     <main class="main-content py-4">
         <div class="container">
             <!-- Статистика -->
             <div class="stats-container" id="stats">
                 <div class="stat-card">
-                    <div class="stat-icon stat-icon-1">
-                        <i class="fas fa-cube"></i>
-                    </div>
+                    <div class="stat-icon stat-icon-1"><i class="fas fa-cube"></i></div>
                     <div class="stat-number">{{ total_patterns|default:"0" }}</div>
                     <div class="stat-label">Всего схем</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon stat-icon-2">
-                        <i class="fas fa-gift"></i>
-                    </div>
-                    {% with free_count=patterns|length %}
-                    <div class="stat-number">{{ free_count }}</div>
-                    {% endwith %}
-                    <div class="stat-label">Показано</div>
+                    <div class="stat-icon stat-icon-2"><i class="fas fa-gift"></i></div>
+                    <div class="stat-number">{{ page_obj.paginator.count }}</div>
+                    <div class="stat-label">Найдено</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon stat-icon-3">
-                        <i class="fas fa-star"></i>
-                    </div>
+                    <div class="stat-icon stat-icon-3"><i class="fas fa-star"></i></div>
                     <div class="stat-number">{{ favorite_pattern_ids|length }}</div>
                     <div class="stat-label">В избранном</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon stat-icon-4">
-                        <i class="fas fa-download"></i>
-                    </div>
+                    <div class="stat-icon stat-icon-4"><i class="fas fa-download"></i></div>
                     <div class="stat-number">{% now "H:i" %}</div>
                     <div class="stat-label">Обновлено</div>
                 </div>
             </div>
 
-            <!-- Поиск и фильтры -->
             <div class="row">
+                <!-- Фильтры -->
                 <div class="col-lg-3">
                     <div class="filter-card">
                         <div class="filter-header">
@@ -156,21 +159,15 @@
                         <div class="filter-group">
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="checkbox" id="freeOnly">
-                                <label class="form-check-label" for="freeOnly">
-                                    Только бесплатные
-                                </label>
+                                <label class="form-check-label" for="freeOnly">Только бесплатные</label>
                             </div>
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="checkbox" id="withPhotos">
-                                <label class="form-check-label" for="withPhotos">
-                                    Только с фото
-                                </label>
+                                <label class="form-check-label" for="withPhotos">Только с фото</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="highRated">
-                                <label class="form-check-label" for="highRated">
-                                    Высокий рейтинг (4+)
-                                </label>
+                                <label class="form-check-label" for="highRated">Высокий рейтинг (4+)</label>
                             </div>
                         </div>
                         
@@ -183,17 +180,16 @@
                     </div>
                 </div>
                 
+                <!-- Схемы -->
                 <div class="col-lg-9">
-                    <!-- Панель поиска -->
+                    <!-- Поиск -->
                     <div class="search-box mb-4">
                         <div class="row align-items-center">
                             <div class="col-md-8 mb-3 mb-md-0">
                                 <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-search"></i>
-                                    </span>
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
                                     <input type="text" class="form-control" id="searchInput" 
-                                           placeholder="Поиск схем по названию, автору или описанию..."
+                                           placeholder="Поиск схем..." 
                                            value="{{ search_query|default:'' }}">
                                 </div>
                             </div>
@@ -208,26 +204,42 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="active-filters mt-2" id="activeFilters">
-                            {% if difficulty_filter %}
-                            <span class="filter-tag">Сложность: 
-                                {% if difficulty_filter == 'beginner' %}Начинающий
-                                {% elif difficulty_filter == 'easy' %}Легкий
-                                {% elif difficulty_filter == 'intermediate' %}Средний
-                                {% elif difficulty_filter == 'experienced' %}Опытный
-                                {% else %}{{ difficulty_filter }}{% endif %}
-                            </span>
-                            {% endif %}
-                            {% if yarn_weight_filter %}
-                            <span class="filter-tag">Пряжа: {{ yarn_weight_filter }}</span>
-                            {% endif %}
-                            {% if search_query %}
-                            <span class="filter-tag">Поиск: "{{ search_query }}"</span>
-                            {% endif %}
-                        </div>
                     </div>
 
-                        <!-- Карточки схем -->
+                    <!-- Активные фильтры -->
+                    {% if difficulty_filter or yarn_weight_filter or search_query %}
+                    <div class="active-filters mb-4" id="activeFilters">
+                        {% if difficulty_filter %}
+                        <span class="filter-tag">Сложность: 
+                            {% if difficulty_filter == 'beginner' %}Начинающий
+                            {% elif difficulty_filter == 'easy' %}Легкий
+                            {% elif difficulty_filter == 'intermediate' %}Средний
+                            {% elif difficulty_filter == 'experienced' %}Опытный
+                            {% else %}{{ difficulty_filter }}{% endif %}
+                        </span>
+                        {% endif %}
+                        {% if yarn_weight_filter %}
+                        <span class="filter-tag">Пряжа: {{ yarn_weight_filter }}</span>
+                        {% endif %}
+                        {% if search_query %}
+                        <span class="filter-tag">Поиск: "{{ search_query }}"</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Информация о странице -->
+                    <div class="page-info mb-3">
+                        <p class="text-muted">
+                            Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}.
+                            Показано {{ patterns|length }} из {{ page_obj.paginator.count }} схем.
+                        </p>
+                    </div>
+
+                    <!-- Новые схемы (будет добавлено JS) -->
+                    <div id="newPatternsContainer"></div>
+
+                    <!-- Список схем -->
+                    <div id="patternsContainer">
                         {% if patterns %}
                             <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
                                 {% for pattern in patterns %}
@@ -235,23 +247,23 @@
                                     <div class="card h-100 shadow-sm pattern-card" 
                                          style="animation-delay: {{ forloop.counter0|divisibleby:3|yesno:'0s,0.1s,0.2s' }};">
                                         
-                                        <!-- Фото схемы -->
+                                        <!-- Фото -->
                                         {% if pattern.photo_url and pattern.photo_url != '#' %}
-                                            <img src="{{ pattern.photo_url }}" 
-                                                 class="card-img-top" 
-                                                 alt="{{ pattern.name }}"
-                                                 style="height: 200px; object-fit: cover;">
+                                            <img src="{{ pattern.photo_url }}" class="card-img-top" 
+                                                 alt="{{ pattern.name }}" style="height: 200px; object-fit: cover; cursor: pointer;"
+                                                 onclick="openRavelryLink('{{ pattern.pattern_url|escapejs }}')">
                                         {% else %}
                                             <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
-                                                 style="height: 200px;">
+                                                 style="height: 200px; cursor: pointer;"
+                                                 onclick="openRavelryLink('{{ pattern.pattern_url|escapejs }}')">
                                                 <i class="fas fa-image fa-3x text-muted"></i>
                                             </div>
                                         {% endif %}
                                         
                                         <div class="card-body">
-                                            <h5 class="card-title">{{ pattern.name }}</h5>
+                                            <h5 class="card-title">{{ pattern.name|truncatechars:50 }}</h5>
                                             
-                                            <!-- Информация о схеме -->
+                                            <!-- Мета-информация -->
                                             <div class="pattern-meta mb-3">
                                                 {% if pattern.yarn_weight and pattern.yarn_weight != 'Not Specified' %}
                                                     <span class="badge bg-info me-1">
@@ -274,10 +286,10 @@
                                             
                                             <!-- Рейтинг -->
                                             {% if pattern.rating and pattern.rating > 0 %}
-                                                <div class="rating mb-3">
-                                                    {% with ''|center:5 as range %}
-                                                        {% for _ in range %}
-                                                            {% if forloop.counter <= pattern.rating %}
+                                                <div class="rating mb-2">
+                                                    {% with full_stars=pattern.rating|floatformat:0 %}
+                                                        {% for i in "12345"|make_list %}
+                                                            {% if forloop.counter <= full_stars|add:0 %}
                                                                 <i class="fas fa-star text-warning"></i>
                                                             {% else %}
                                                                 <i class="far fa-star text-warning"></i>
@@ -289,29 +301,30 @@
                                             {% endif %}
                                             
                                             <!-- Автор -->
-                                            {% if pattern.author %}
+                                            {% if pattern.designer and pattern.designer != 'Неизвестно' %}
                                                 <p class="card-text small text-muted">
-                                                    <i class="fas fa-user me-1"></i> {{ pattern.author }}
+                                                    <i class="fas fa-user me-1"></i> {{ pattern.designer|truncatechars:30 }}
                                                 </p>
                                             {% endif %}
                                         </div>
                                         
                                         <div class="card-footer bg-white border-top-0">
                                             <div class="d-flex justify-content-between align-items-center">
-                                                <!-- Кнопка избранного -->
+                                                <!-- Избранное -->
                                                 <button class="btn btn-sm {% if pattern.id in favorite_pattern_ids %}btn-danger{% else %}btn-outline-danger{% endif %}"
-                                                        onclick="toggleFavorite({{ pattern.id }}, this)"
-                                                        title="{% if pattern.id in favorite_pattern_ids %}Удалить из избранного{% else %}Добавить в избранное{% endif %}">
+                                                        onclick="toggleFavorite({{ pattern.id }}, this)">
                                                     <i class="{% if pattern.id in favorite_pattern_ids %}fas{% else %}far{% endif %} fa-heart"></i>
+                                                    <span class="ms-1 d-none d-sm-inline">
+                                                        {% if pattern.id in favorite_pattern_ids %}В избранном{% else %}В избранное{% endif %}
+                                                    </span>
                                                 </button>
                                                 
-                                                <!-- Ссылка на схему -->
+                                                <!-- Ссылка на Ravelry -->
                                                 {% if pattern.pattern_url and pattern.pattern_url != '#' %}
-                                                    <a href="{{ pattern.pattern_url }}" 
-                                                       target="_blank" 
-                                                       class="btn btn-primary btn-sm">
-                                                        <i class="fas fa-external-link-alt me-1"></i>Схема
-                                                    </a>
+                                                    <button onclick="openRavelryLink('{{ pattern.pattern_url|escapejs }}')" 
+                                                            class="btn btn-sm ravelry-link">
+                                                        <i class="fas fa-external-link-alt me-1"></i>На Ravelry
+                                                    </button>
                                                 {% else %}
                                                     <span class="text-muted small">
                                                         <i class="fas fa-lock me-1"></i>Требуется покупка
@@ -323,18 +336,79 @@
                                 </div>
                                 {% endfor %}
                             </div>
+                            
+                            <!-- Пагинация -->
+                            {% if page_obj.paginator.num_pages > 1 %}
+                            <nav aria-label="Навигация по страницам" class="mt-5">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if difficulty_filter %}&difficulty={{ difficulty_filter }}{% endif %}{% if yarn_weight_filter %}&yarn_weight={{ yarn_weight_filter }}{% endif %}"
+                                           aria-label="Предыдущая">
+                                            <span aria-hidden="true">&laquo;</span>
+                                        </a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item disabled">
+                                        <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
+                                            <span aria-hidden="true">&laquo;</span>
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                    
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if num == page_obj.number %}
+                                            <li class="page-item active" aria-current="page">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% elif num > page_obj.number|add:-3 and num < page_obj.number|add:3 %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if difficulty_filter %}&difficulty={{ difficulty_filter }}{% endif %}{% if yarn_weight_filter %}&yarn_weight={{ yarn_weight_filter }}{% endif %}">
+                                                    {{ num }}
+                                                </a>
+                                            </li>
+                                        {% elif num == 1 or num == page_obj.paginator.num_pages %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if difficulty_filter %}&difficulty={{ difficulty_filter }}{% endif %}{% if yarn_weight_filter %}&yarn_weight={{ yarn_weight_filter }}{% endif %}">
+                                                    {{ num }}
+                                                </a>
+                                            </li>
+                                        {% elif num == page_obj.number|add:-3 or num == page_obj.number|add:3 %}
+                                            <li class="page-item disabled">
+                                                <span class="page-link">...</span>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if difficulty_filter %}&difficulty={{ difficulty_filter }}{% endif %}{% if yarn_weight_filter %}&yarn_weight={{ yarn_weight_filter }}{% endif %}"
+                                           aria-label="Следующая">
+                                            <span aria-hidden="true">&raquo;</span>
+                                        </a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item disabled">
+                                        <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
+                                            <span aria-hidden="true">&raquo;</span>
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                            {% endif %}
+                            
                         {% else %}
-                            <div class="col-12">
-                                <div class="empty-state text-center py-5">
-                                    <div class="empty-icon mb-4">
-                                        <i class="fas fa-search fa-3x text-muted"></i>
-                                    </div>
-                                    <h3 class="mb-3">Схемы не найдены</h3>
-                                    <p class="text-muted mb-4">Попробуйте изменить фильтры поиска или загрузить новые схемы</p>
-                                    <button class="btn btn-primary" onclick="loadPatternsFromAPI()">
-                                        <i class="fas fa-sync-alt me-2"></i>Загрузить новые схемы
-                                    </button>
+                            <!-- Сообщение если нет схем -->
+                            <div class="empty-state text-center py-5">
+                                <div class="empty-icon mb-4">
+                                    <i class="fas fa-search fa-3x text-muted"></i>
                                 </div>
+                                <h3 class="mb-3">Схемы не найдены</h3>
+                                <p class="text-muted mb-4">Попробуйте изменить фильтры или загрузить новые схемы</p>
+                                <button class="btn btn-primary" onclick="loadPatternsFromAPI()">
+                                    <i class="fas fa-sync-alt me-2"></i>Загрузить новые схемы
+                                </button>
                             </div>
                         {% endif %}
                     </div>
@@ -348,311 +422,120 @@
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-md-6">
-                    <div class="footer-title">
-                        <img src="{% static 'images/logo.jpg' %}" alt="KnitMatch" class="footer-logo">
+                    <div class="footer-title d-flex align-items-center">
+                        <img src="{% static 'images/logo.jpg' %}" alt="KnitMatch" height="40" class="rounded-circle me-2">
                         <div>
                             <span style="color: #8a4fff; font-weight: 600;">Knit</span>
                             <span style="color: #00d4aa; font-weight: 600;">Match</span>
                         </div>
                     </div>
-                    <p class="footer-text">
-                        Сообщество вязальщиц, созданное с <i class="fas fa-heart footer-heart"></i> для творчества и вдохновения
+                    <p class="footer-text mt-2">
+                        Сообщество вязальщиц, созданное с <i class="fas fa-heart" style="color: #ff6b8b;"></i> для творчества
                     </p>
                 </div>
-                <div class="col-md-6 text-end">
+                <div class="col-md-6 text-md-end">
                     <p class="text-muted mb-0">© 2026 KnitMatch. Все права защищены.</p>
                 </div>
             </div>
         </div>
     </footer>
 
+    <!-- Уведомление -->
+    <div id="notification" class="notification alert alert-success d-none" role="alert"></div>
+
+    <!-- Подключение JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{% static 'js/projects.js' %}"></script>
     
+    <!-- CSRF токен для AJAX запросов -->
     <script>
-    // Глобальные переменные
-    let favorites = JSON.parse(localStorage.getItem('knitmatch_favorites')) || [];
-    
-    // Функция показа уведомления
-    function showNotification(message, type = 'info') {
-        // Удаляем старое уведомление
-        const oldNotification = document.querySelector('.notification');
-        if (oldNotification) oldNotification.remove();
+        // CSRF токен для AJAX
+        const csrfToken = "{{ csrf_token }}";
         
-        const notification = document.createElement('div');
-        notification.className = `notification alert alert-${type}`;
-        notification.innerHTML = `
-            <div class="d-flex align-items-center">
-                <div class="flex-grow-1">
-                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
-                    ${message}
-                </div>
-                <button type="button" class="btn-close btn-sm" onclick="this.parentElement.parentElement.remove()"></button>
-            </div>
-        `;
-        
-        document.body.appendChild(notification);
-        
-        // Автоматическое удаление через 5 секунд
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.remove();
-            }
-        }, 5000);
-    }
-    
-    // Обновление схем из API
-    async function loadPatternsFromAPI() {
-        try {
-            showNotification('Загрузка новых схем...', 'info');
-            
-            // Правильный URL из urls.py: path('patterns/refresh/', views.refresh_patterns, name='refresh_patterns'),
-            const response = await fetch('{% url "refresh_patterns" %}', {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': getCookie('csrftoken'),
-                }
-            });
-            
-            // Сначала проверяем статус ответа
-            if (!response.ok) {
-                throw new Error(`HTTP ошибка: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                showNotification(data.message, 'success');
-                // Обновляем страницу через 2 секунды
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-            } else {
-                showNotification('Ошибка загрузки схем: ' + (data.message || 'Неизвестная ошибка'), 'error');
-            }
-            
-        } catch (error) {
-            console.error('Ошибка загрузки:', error);
-            showNotification('Ошибка: ' + error.message, 'error');
-            
-            // Если ошибка 500, проверяем консоль Django
-            if (error.message.includes('500')) {
-                showNotification('Проверьте консоль Django сервера', 'warning');
+        // Функция для открытия ссылки на Ravelry
+        function openRavelryLink(url) {
+            if (url && url !== '#') {
+                window.open(url, '_blank');
             }
         }
-    }
-    
-    // Применение фильтров
-    function applyFilters() {
-        const difficulty = document.getElementById('difficultyFilter').value;
-        const yarnWeight = document.getElementById('yarnWeightFilter').value;
-        const searchQuery = document.getElementById('searchInput').value.trim();
         
-        // Формируем URL с параметрами
-        let url = '{% url "projects" %}?';
-        const params = [];
-        
-        if (difficulty) params.push(`difficulty=${difficulty}`);
-        if (yarnWeight) params.push(`yarn_weight=${encodeURIComponent(yarnWeight)}`);
-        if (searchQuery) params.push(`search=${encodeURIComponent(searchQuery)}`);
-        
-        // Фильтры чекбоксов (работают только клиентски для показанных схем)
-        const freeOnly = document.getElementById('freeOnly').checked;
-        const withPhotos = document.getElementById('withPhotos').checked;
-        const highRated = document.getElementById('highRated').checked;
-        
-        if (freeOnly || withPhotos || highRated) {
-            // Клиентская фильтрация уже показанных схем
-            filterClientSide(freeOnly, withPhotos, highRated);
-            return;
+        // Функция для применения фильтров
+        function applyFilters() {
+            const difficulty = document.getElementById('difficultyFilter').value;
+            const yarnWeight = document.getElementById('yarnWeightFilter').value;
+            const searchQuery = document.getElementById('searchInput').value;
+            const freeOnly = document.getElementById('freeOnly').checked ? 'true' : '';
+            
+            let url = '?';
+            
+            if (difficulty) url += `difficulty=${difficulty}&`;
+            if (yarnWeight) url += `yarn_weight=${yarnWeight}&`;
+            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
+            if (freeOnly) url += `free=${freeOnly}&`;
+            
+            // Удаляем последний & или ?
+            url = url.replace(/[&?]$/, '');
+            
+            window.location.href = url || '?';
         }
         
-        if (params.length > 0) {
-            url += params.join('&');
-            window.location.href = url;
-        } else {
+        // Функция для сброса фильтров
+        function resetFilters() {
             window.location.href = '{% url "projects" %}';
         }
-    }
-    
-    // Клиентская фильтрация
-    function filterClientSide(freeOnly, withPhotos, highRated) {
-        const cards = document.querySelectorAll('.pattern-card');
-        let visibleCount = 0;
         
-        cards.forEach(card => {
-            let shouldShow = true;
+        // Функция для обновления схем через API
+        function loadPatternsFromAPI() {
+            const button = event.target;
+            const originalText = button.innerHTML;
             
-            if (freeOnly) {
-                const hasFreeBadge = card.querySelector('.badge.bg-success');
-                if (!hasFreeBadge) shouldShow = false;
-            }
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Загрузка...';
+            button.disabled = true;
             
-            if (withPhotos) {
-                const hasPlaceholder = card.querySelector('.fa-image');
-                if (hasPlaceholder) shouldShow = false;
-            }
-            
-            if (highRated) {
-                const ratingElement = card.querySelector('.rating');
-                if (ratingElement) {
-                    const stars = ratingElement.querySelectorAll('.fa-star').length;
-                    const halfStars = ratingElement.querySelectorAll('.fa-star-half-alt').length;
-                    const rating = stars + (halfStars * 0.5);
-                    if (rating < 4) shouldShow = false;
-                } else {
-                    shouldShow = false;
-                }
-            }
-            
-            if (shouldShow) {
-                card.parentElement.style.display = 'block';
-                visibleCount++;
-            } else {
-                card.parentElement.style.display = 'none';
-            }
-        });
-        
-        // Показываем сообщение если ничего не найдено
-        const container = document.getElementById('patternsContainer');
-        const emptyState = container.querySelector('.empty-state');
-        
-        if (visibleCount === 0) {
-            if (!emptyState) {
-                const emptyHtml = `
-                    <div class="empty-state text-center py-5">
-                        <div class="empty-icon mb-4">
-                            <i class="fas fa-filter fa-3x text-muted"></i>
-                        </div>
-                        <h3 class="mb-3">Схемы не найдены</h3>
-                        <p class="text-muted mb-4">Ни одна схема не соответствует выбранным фильтрам</p>
-                        <button class="btn btn-primary" onclick="resetFilters()">
-                            <i class="fas fa-redo me-2"></i>Сбросить фильтры
-                        </button>
-                    </div>
-                `;
-                container.insertAdjacentHTML('beforeend', emptyHtml);
-            }
-        } else if (emptyState) {
-            emptyState.remove();
-        }
-        
-        showNotification(`Найдено ${visibleCount} схем`, 'info');
-    }
-    
-    // Сброс фильтров
-    function resetFilters() {
-        window.location.href = '{% url "projects" %}';
-    }
-    
-    // AJAX запрос для избранного
-    async function toggleFavorite(patternId, button) {
-        try {
-            // Правильный URL из urls.py: path('patterns/favorite/<int:pattern_id>/', views.toggle_favorite, name='toggle_favorite'),
-            const response = await fetch(`/patterns/favorite/${patternId}/`, {
+            fetch('{% url "refresh_patterns" %}', {
                 method: 'POST',
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: 'count=6'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showNotification(data.error || 'Ошибка загрузки', 'danger');
                 }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Ошибка загрузки схем', 'danger');
+            })
+            .finally(() => {
+                button.innerHTML = originalText;
+                button.disabled = false;
             });
-            
-            // Сначала проверяем статус ответа
-            if (!response.ok) {
-                if (response.status === 404) {
-                    throw new Error('Страница не найдена (404). Проверьте URL.');
-                } else if (response.status === 500) {
-                    throw new Error('Ошибка сервера (500). Проверьте консоль Django.');
-                }
-                throw new Error(`HTTP ошибка: ${response.status}`);
-            }
-            
-            // Проверяем, что ответ JSON
-            const contentType = response.headers.get("content-type");
-            if (!contentType || !contentType.includes("application/json")) {
-                const text = await response.text();
-                console.error('Не JSON ответ:', text.substring(0, 200));
-                throw new Error("Сервер вернул не JSON ответ. Возможно ошибка в view.");
-            }
-            
-            const data = await response.json();
-            
-            if (data.status === 'success') {
-                showNotification(data.message, 'success');
-                
-                // Обновляем иконку
-                if (button) {
-                    const icon = button.querySelector('i');
-                    if (data.is_favorite) {
-                        icon.classList.remove('far');
-                        icon.classList.add('fas');
-                        button.classList.remove('btn-outline-danger');
-                        button.classList.add('btn-danger');
-                    } else {
-                        icon.classList.remove('fas');
-                        icon.classList.add('far');
-                        button.classList.remove('btn-danger');
-                        button.classList.add('btn-outline-danger');
-                    }
-                }
-                
-                // Обновляем счетчик в статистике
-                const favoritesCountElement = document.querySelector('#favoritesCount');
-                if (favoritesCountElement) {
-                    let currentCount = parseInt(favoritesCountElement.textContent) || 0;
-                    if (data.is_favorite) {
-                        currentCount++;
-                    } else {
-                        currentCount--;
-                    }
-                    favoritesCountElement.textContent = Math.max(0, currentCount);
-                }
-            } else {
-                showNotification('Ошибка: ' + data.message, 'error');
-            }
-            
-        } catch (error) {
-            console.error('Ошибка избранного:', error);
-            showNotification('Ошибка: ' + error.message, 'error');
         }
-    }
-    
-    // Вспомогательная функция для получения CSRF токена
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue || '';
-    }
-    
-    // Инициализация при загрузке страницы
-    document.addEventListener('DOMContentLoaded', function() {
-        // Активируем анимацию карточек
-        setTimeout(() => {
-            const patternCards = document.querySelectorAll('.pattern-card');
-            patternCards.forEach((card, index) => {
-                card.style.opacity = '1';
-            });
-        }, 100);
         
-        // Добавляем обработчики для карточек
-        document.querySelectorAll('.pattern-card').forEach(card => {
-            card.addEventListener('click', function(e) {
-                if (!e.target.closest('button') && !e.target.closest('a')) {
-                    const title = this.querySelector('.card-title').textContent;
-                    showNotification(`Выбрана схема: ${title}`, 'info');
-                }
-            });
-        });
-    });
-</script>
+        // Функция для показа уведомлений
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification alert alert-${type} fade show`;
+            notification.classList.remove('d-none');
+            
+            setTimeout(() => {
+                notification.classList.add('fade');
+                setTimeout(() => {
+                    notification.classList.add('d-none');
+                    notification.classList.remove('fade');
+                }, 500);
+            }, 3000);
+        }
+    </script>
 </body>
 </html>

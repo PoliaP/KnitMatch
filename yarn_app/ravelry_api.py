@@ -1,3 +1,4 @@
+# ravelry_api.py
 import requests
 import base64
 import time
@@ -108,9 +109,43 @@ class RavelryAPI:
             print(f"❌ Ошибка сети: {e}")
             return None
     
-    def fetch_popular_patterns(count=10):
-        """Загрузка популярных схем - ВРЕМЕННАЯ ЗАГЛУШКА"""
-        print(f"🛠 DEBUG RavelryAPI.fetch_popular_patterns({count}) - заглушка")
+    def fetch_popular_patterns(self, count=10):
+        """Загрузка популярных схем с реального API"""
+        params = {
+            'page_size': min(count, 100),  # Ravelry максимум 100
+            'sort': 'popularity',
+            'craft': 'knitting'
+        }
+        
+        print(f"📊 Загружаю {count} популярных схем...")
+        print(f"   Параметры запроса: {params}")
+
+        data = self._make_request('patterns/search.json', params)
+        
+        if not data:
+            print("❌ Нет данных от API")
+            return []
+        
+        print(f"📦 Ответ от API получен. Ключи в ответе: {list(data.keys())}")
+        
+        if 'patterns' not in data:
+            print(f"❌ Неожиданный формат ответа: {data.keys()}")
+            print(f"   Полный ответ (первые 500 символов): {str(data)[:500]}")
+            return []
+        
+        patterns = data.get('patterns', [])
+        print(f"✅ Получено {len(patterns)} схем")
+        
+        if patterns:
+            print("   Примеры полученных схем:")
+            for i, pattern in enumerate(patterns[:3], 1):
+                name = pattern.get('name', 'Без названия')[:50]
+                pattern_id = pattern.get('id', 'N/A')
+                print(f"   {i}. ID:{pattern_id} - {name}")
+            else:
+                print("⚠ В ответе есть ключ 'patterns', но он пустой")
+
+        return patterns[:count]
     
     def _convert_difficulty(self, rating):
         """Конвертирует рейтинг сложности"""
@@ -146,22 +181,70 @@ class RavelryAPI:
             return []
         
         return data['patterns'][:count]
+    
+    def get_pattern_details(self, pattern_id):
+        """Получение детальной информации о схеме"""
+        endpoint = f'patterns/{pattern_id}.json'
+        data = self._make_request(endpoint)
+        
+        if not data or 'pattern' not in data:
+            print(f"❌ Не удалось получить информацию о схеме {pattern_id}")
+            return None
+        
+        return data['pattern']
+
+# Инициализация синглтон экземпляра
+try:
+    ravelry_personal = RavelryAPI(use_personal=True)
+    print("✅ RavelryAPI инициализирован")
+except Exception as e:
+    print(f"⚠ Ошибка инициализации RavelryAPI: {e}")
+    # Создаем заглушку для разработки
+    class RavelryAPIStub:
+        def __init__(self, *args, **kwargs):
+            print("🛠 Использую RavelryAPIStub (заглушка)")
+        
+        def test_connection(self):
+            print("✅ Заглушка: подключение тестовое")
+            return True
+        
+        def fetch_popular_patterns(self, count=10):
+            print(f"🛠 Заглушка: возвращаю тестовые схемы ({count})")
+            # Возвращаем тестовые данные
+            return [
+                {
+                    'id': i,
+                    'name': f'Тестовая схема {i}',
+                    'designer': {'name': 'Тестовый дизайнер'},
+                    'difficulty_average': 2.5,
+                    'yarn_weight': {'name': 'Worsted'},
+                    'yardage': 200 + i * 50,
+                    'free': i % 2 == 0,
+                    'rating': {'average': 4.0 + i * 0.1},
+                    'permalink': f'#pattern{i}',
+                    'first_photo': {'square_url': ''},
+                    'craft': {'name': 'knitting'},
+                    'notes': f'Тестовое описание схемы {i}',
+                    'published': '2024-01-01'
+                }
+                for i in range(1, count + 1)
+            ]
+    
+    ravelry_personal = RavelryAPIStub()
+
 
 def get_yarn_type_mapping():
     """Возвращает маппинг типов пряжи для фильтрации"""
     return {
-        'lace': 'Lace',
-        'light fingering': 'Light Fingering',
-        'fingering': 'Fingering',
-        'sport': 'Sport',
-        'dk': 'DK',
-        'worsted': 'Worsted',
-        'aran': 'Aran',
-        'bulky': 'Bulky',
-        'super bulky': 'Super Bulky',
-        'jumbo': 'Jumbo',
+        'lace': ['Lace'],
+        'light fingering': ['Light Fingering'],
+        'fingering': ['Fingering'],
+        'sport': ['Sport'],
+        'dk': ['DK'],
+        'worsted': ['Worsted'],
+        'aran': ['Aran'],
+        'bulky': ['Bulky'],
+        'super bulky': ['Super Bulky'],
+        'jumbo': ['Jumbo'],
+        'other': []  # Для типа "другая"
     }
-
-# Синглтон экземпляры для удобства
-ravelry_personal = RavelryAPI(use_personal=True)
-# ravelry_readonly = RavelryAPI(use_personal=False)

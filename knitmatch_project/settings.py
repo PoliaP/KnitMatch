@@ -168,3 +168,25 @@ else:
     print(f"✅ Учетные данные Ravelry API загружены")
     print(f"   Username: {RAVELRY_USERNAME[:10]}...")
     print(f"   Token: {RAVELRY_PERSONAL_ACCESS_TOKEN[:10]}...")
+
+print("\n" + "="*50)
+print("🧪 ПРОВЕРКА RAVELRY API")
+print("="*50)
+
+if RAVELRY_USERNAME and RAVELRY_PERSONAL_ACCESS_TOKEN:
+    print(f"✅ Учетные данные найдены")
+    print(f"   Username/App ID: {RAVELRY_USERNAME}")
+    print(f"   Token (первые 10): {RAVELRY_PERSONAL_ACCESS_TOKEN[:10]}...")
+    
+    try:
+        # Тестируем базовую аутентификацию
+        import base64
+        auth_string = f"{RAVELRY_USERNAME}:{RAVELRY_PERSONAL_ACCESS_TOKEN}"
+        auth_header = f"Basic {base64.b64encode(auth_string.encode()).decode()}"
+        print(f"   Auth header (первые 50): {auth_header[:50]}...")
+    except Exception as e:
+        print(f"⚠ Ошибка формирования auth: {e}")
+else:
+    print("❌ Учетные данные не найдены")
+
+print("="*50 + "\n")
