@@ -10,10 +10,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-сюда-случай
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = [
-    'polina.pythonanywhere.com', 
-    'Polina.pythonanywhere.com', 
-    '.pythonanywhere.com', 
-    'localhost',
+    'podviginapolina.pythonanywhere.com', 
     '127.0.0.1',
 ]
 
