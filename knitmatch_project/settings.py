@@ -7,25 +7,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-сюда-случайный-ключ')
 
 # DEBUG из переменных окружения
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['Polina.pythonanywhere.com', '127.0.0.1']
+ALLOWED_HOSTS = [
+    'polina.pythonanywhere.com', 
+    'Polina.pythonanywhere.com', 
+    '.pythonanywhere.com', 
+    'localhost',
+    '127.0.0.1',
+]
 
 # Добавляем хосты из переменных окружения
 env_hosts = os.environ.get('ALLOWED_HOSTS')
 if env_hosts:
     ALLOWED_HOSTS.extend([h.strip() for h in env_hosts.split(',') if h.strip()])
 
-# Если пусто, добавляем значения по умолчанию
-if not ALLOWED_HOSTS:
-    ALLOWED_HOSTS = [
-        'localhost',
-        '127.0.0.1',
-        'knitmatch.onrender.com',
-        '.onrender.com',
-    ]
-
 CSRF_TRUSTED_ORIGINS = [
+    'https://polina.pythonanywhere.com',
+    'https://*.pythonanywhere.com',
     'https://*.onrender.com',
     'https://knitmatch.onrender.com',
 ]
